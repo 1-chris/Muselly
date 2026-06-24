@@ -1,0 +1,124 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="using:Muselly.App.Controls">
+
+    <!-- ============================================================================================
+         IconButton — a vector-glyph button with hover/press feedback and emphasis variants.
+         ============================================================================================ -->
+    <ControlTheme x:Key="{x:Type controls:IconButton}" TargetType="controls:IconButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource CatppuccinSubtext1}"/>
+        <Setter Property="Width" Value="40"/>
+        <Setter Property="Height" Value="40"/>
+        <Setter Property="IconSize" Value="20"/>
+        <Setter Property="CornerRadius" Value="20"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+            </Transitions>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_Bg"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <!-- Render the glyph inside its full 24x24 design grid so symmetric icons (e.g. pause)
+                         stay perfectly centred regardless of their own bounds. -->
+                    <Viewbox Width="{TemplateBinding IconSize}" Height="{TemplateBinding IconSize}"
+                             Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Canvas Width="24" Height="24">
+                            <Path Name="PART_Icon"
+                                  Data="{TemplateBinding Icon}"
+                                  Fill="{TemplateBinding Foreground}"/>
+                        </Canvas>
+                    </Viewbox>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:pointerover /template/ Border#PART_Bg">
+            <Setter Property="Background" Value="{StaticResource CatppuccinSurface1}"/>
+        </Style>
+        <Style Selector="^:pointerover /template/ Path#PART_Icon">
+            <Setter Property="Fill" Value="{StaticResource CatppuccinText}"/>
+        </Style>
+        <Style Selector="^:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.92)"/>
+        </Style>
+        <Style Selector="^:disabled">
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+
+        <!-- accent: the primary filled action (play). -->
+        <Style Selector="^.accent /template/ Border#PART_Bg">
+            <Setter Property="Background" Value="{StaticResource CatppuccinMauve}"/>
+        </Style>
+        <Style Selector="^.accent /template/ Path#PART_Icon">
+            <Setter Property="Fill" Value="{StaticResource CatppuccinCrust}"/>
+        </Style>
+        <Style Selector="^.accent:pointerover /template/ Border#PART_Bg">
+            <Setter Property="Background" Value="{StaticResource CatppuccinPink}"/>
+        </Style>
+        <Style Selector="^.accent:pointerover /template/ Path#PART_Icon">
+            <Setter Property="Fill" Value="{StaticResource CatppuccinCrust}"/>
+        </Style>
+
+        <!-- active: an "on" toggle state (shuffle/repeat enabled). -->
+        <Style Selector="^.active /template/ Path#PART_Icon">
+            <Setter Property="Fill" Value="{StaticResource CatppuccinMauve}"/>
+        </Style>
+        <Style Selector="^.active:pointerover /template/ Path#PART_Icon">
+            <Setter Property="Fill" Value="{StaticResource CatppuccinPink}"/>
+        </Style>
+
+        <!-- flat: a rounded-square hit target for toolbars/rows. -->
+        <Style Selector="^.flat">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="IconSize" Value="18"/>
+        </Style>
+        <Style Selector="^.small">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="IconSize" Value="16"/>
+        </Style>
+    </ControlTheme>
+
+    <!-- ============================================================================================
+         AlbumArt — rounded cover image with a themed placeholder when artwork is missing.
+         ============================================================================================ -->
+    <ControlTheme x:Key="{x:Type controls:AlbumArt}" TargetType="controls:AlbumArt">
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Width" Value="160"/>
+        <Setter Property="Height" Value="160"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border CornerRadius="{TemplateBinding CornerRadius}" ClipToBounds="True">
+                    <Panel>
+                        <!-- placeholder -->
+                        <Border IsVisible="{Binding !HasImage, RelativeSource={RelativeSource TemplatedParent}}">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Color="{StaticResource CatppuccinSurface1Color}" Offset="0"/>
+                                    <GradientStop Color="{StaticResource CatppuccinSurface0Color}" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Path Data="{StaticResource IconMusicNote}"
+                                  Fill="{StaticResource CatppuccinOverlay0}"
+                                  Stretch="Uniform"
+                                  Width="36" Height="36"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Image Source="{Binding Bitmap, RelativeSource={RelativeSource TemplatedParent}}"
+                               Stretch="UniformToFill"
+                               IsVisible="{Binding HasImage, RelativeSource={RelativeSource TemplatedParent}}"/>
+                    </Panel>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </ControlTheme>
+
+</ResourceDictionary>

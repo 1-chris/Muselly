@@ -1,0 +1,282 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="700"
+             x:Class="Muselly.App.Views.LibraryView"
+             x:DataType="vm:LibraryViewModel">
+
+    <UserControl.Styles>
+        <!-- Reveal the play overlay on album cards while hovering. -->
+        <Style Selector="Button.album controls|IconButton.playoverlay">
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+        <Style Selector="Button.album:pointerover controls|IconButton.playoverlay">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Margin="24,12,24,12">
+
+        <!-- Content (search lives in the shared top bar; tab switching in the left rail) -->
+        <Panel>
+
+            <!-- Empty library hint -->
+            <StackPanel IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Spacing="14" MaxWidth="420">
+                <Path Data="{StaticResource IconLibrary}" Fill="{StaticResource CatppuccinOverlay0}"
+                      Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Center"/>
+                <TextBlock Text="Your library is empty" Classes="h2" HorizontalAlignment="Center"/>
+                <TextBlock HorizontalAlignment="Center" TextAlignment="Center" Classes="subtle"
+                           Text="Add music folders in Settings to scan your collection. Muselly reads MP3, WAV, FLAC, ALAC, AAC and Opus."/>
+            </StackPanel>
+
+            <!-- Albums grid -->
+            <ScrollViewer IsVisible="{Binding IsAlbumsTab}">
+                <ItemsControl ItemsSource="{Binding Albums}" controls:DragDropBehavior.DragSource="Library">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Album">
+                            <Button Classes="ghost album" Padding="8" CornerRadius="12"
+                                    Command="{Binding DataContext.OpenAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Width="160" Spacing="8">
+                                    <Panel>
+                                        <controls:AlbumArt Width="160" Height="160" Source="{Binding ArtworkPath}"/>
+                                        <controls:IconButton Classes="accent playoverlay" Icon="{StaticResource IconPlay}"
+                                                             Width="44" Height="44" CornerRadius="22" IconSize="22"
+                                                             HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                             Margin="0,0,8,8"
+                                                             Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                             CommandParameter="{Binding}"/>
+                                    </Panel>
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                    <TextBlock Text="{Binding AlbumArtist}" FontSize="12" Classes="subtle"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Play"
+                                                  Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Play next"
+                                                  Command="{Binding DataContext.PlayNextAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Play shuffled"
+                                                  Command="{Binding DataContext.PlayAlbumShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffle}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator/>
+                                        <MenuItem Header="Add to queue"
+                                                  Command="{Binding DataContext.QueueAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Add to queue (shuffled)"
+                                                  Command="{Binding DataContext.QueueAlbumShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffleAdd}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Artists grid -->
+            <ScrollViewer IsVisible="{Binding IsArtistsTab}">
+                <ItemsControl ItemsSource="{Binding Artists}" controls:DragDropBehavior.DragSource="Library">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Artist">
+                            <Button Classes="ghost album" Padding="8" CornerRadius="12"
+                                    Command="{Binding DataContext.OpenArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Width="150" Spacing="8">
+                                    <controls:AlbumArt Width="150" Height="150" CornerRadius="75"
+                                                       Source="{Binding ArtworkPath}"/>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                               TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource CatppuccinText}"/>
+                                    <TextBlock FontSize="12" Classes="subtle" TextAlignment="Center"
+                                               Text="{Binding AlbumCount, StringFormat='{}{0} albums'}"/>
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Play"
+                                                  Command="{Binding DataContext.PlayArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Play next"
+                                                  Command="{Binding DataContext.PlayNextArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Play shuffled"
+                                                  Command="{Binding DataContext.PlayArtistShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffle}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator/>
+                                        <MenuItem Header="Add to queue"
+                                                  Command="{Binding DataContext.QueueArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Add to queue (shuffled)"
+                                                  Command="{Binding DataContext.QueueArtistShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffleAdd}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Songs list -->
+            <Grid IsVisible="{Binding IsSongsTab}" RowDefinitions="Auto,*">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+                    <Button Classes="accent" Command="{Binding PlayAllSongsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Data="{StaticResource IconPlay}" Width="16" Height="16" Stretch="Uniform"
+                                  Fill="{StaticResource CatppuccinCrust}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Play all" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="pill" Command="{Binding ShuffleAllSongsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Data="{StaticResource IconShuffle}" Width="16" Height="16" Stretch="Uniform"
+                                  Fill="{StaticResource CatppuccinText}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Shuffle all" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding Songs}"
+                         controls:DragDropBehavior.DragSource="Library"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:Track">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Height="50" Background="Transparent"
+                                  controls:DoubleTappedBehavior.Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                  controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                                <Button Grid.Column="0" Classes="plain" Padding="0" ToolTip.Tip="Go to album"
+                                        Command="{Binding DataContext.OpenTrackAlbumCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}">
+                                    <controls:AlbumArt Width="40" Height="40" CornerRadius="6" Source="{Binding ArtworkPath}"/>
+                                </Button>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0" Spacing="1">
+                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                    <Button Classes="link" HorizontalAlignment="Left" FontSize="12"
+                                            Content="{Binding DisplayArtist}"
+                                            Command="{Binding DataContext.OpenTrackArtistCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="link" Width="180" HorizontalAlignment="Left"
+                                        HorizontalContentAlignment="Left" FontSize="12"
+                                        Content="{Binding DisplayAlbum}" Margin="0,0,16,0"
+                                        Command="{Binding DataContext.OpenTrackAlbumCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                                <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="12" Classes="subtle"
+                                           Margin="0,0,8,0"
+                                           Text="{Binding Duration, Converter={StaticResource DurationConverter}}"/>
+                                <controls:IconButton Grid.Column="4" Classes="small" Icon="{StaticResource IconPlay}"
+                                                     Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                     CommandParameter="{Binding}"/>
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Play"
+                                                  Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Play next"
+                                                  Command="{Binding DataContext.QueueSongNextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Add to queue"
+                                                  Command="{Binding DataContext.QueueSongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <!-- Folders -->
+            <Grid IsVisible="{Binding IsFoldersTab}" ColumnDefinitions="2*,3*">
+                <Border Grid.Column="0" Classes="card" Padding="8" Margin="0,0,12,0">
+                    <TreeView ItemsSource="{Binding FolderRoots}" SelectedItem="{Binding SelectedFolder}"
+                              Background="Transparent">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FolderNode">
+                                <StackPanel Orientation="Horizontal" Spacing="8" Height="30">
+                                    <Path Data="{StaticResource IconFolder}" Width="16" Height="16" Stretch="Uniform"
+                                          Fill="{StaticResource CatppuccinBlue}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                               Foreground="{StaticResource CatppuccinText}"/>
+                                    <TextBlock VerticalAlignment="Center" Classes="caption"
+                                               Text="{Binding TotalTrackCount, StringFormat='({0})'}"/>
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Border>
+
+                <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12"
+                                IsVisible="{Binding SelectedFolder, Converter={StaticResource IsNotNullConverter}}">
+                        <Button Classes="accent" Command="{Binding PlayFolderCommand}"
+                                CommandParameter="{Binding SelectedFolder}">
+                            <TextBlock Text="Play folder"/>
+                        </Button>
+                        <Button Classes="pill" Command="{Binding QueueFolderCommand}"
+                                CommandParameter="{Binding SelectedFolder}">
+                            <TextBlock Text="Add to queue"/>
+                        </Button>
+                    </StackPanel>
+                    <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding FolderTracks}"
+                             controls:DragDropBehavior.DragSource="Library"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:Track">
+                                <Grid ColumnDefinitions="*,Auto,Auto" Height="44" Background="Transparent"
+                                      controls:DoubleTappedBehavior.Command="{Binding DataContext.PlayFolderTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                      controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                        <TextBlock Text="{Binding DisplayArtist}" FontSize="11" Classes="subtle"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="subtle" FontSize="12"
+                                               Margin="0,0,8,0"
+                                               Text="{Binding Duration, Converter={StaticResource DurationConverter}}"/>
+                                    <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconPlay}"
+                                                         Command="{Binding DataContext.PlayFolderTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                         CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Grid>
+
+        </Panel>
+    </Grid>
+</UserControl>

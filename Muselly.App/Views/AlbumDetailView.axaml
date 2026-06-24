@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="Muselly.App.Views.AlbumDetailView"
+             x:DataType="vm:AlbumDetailViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="24,8,24,18">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,18">
+            <controls:AlbumArt Grid.Column="0" Width="200" Height="200" CornerRadius="16"
+                               Source="{Binding Album.ArtworkPath}"/>
+            <StackPanel Grid.Column="1" Margin="22,0,0,0" VerticalAlignment="Bottom" Spacing="10">
+                <TextBlock Text="ALBUM" Classes="caption" Foreground="{StaticResource CatppuccinMauve}"
+                           FontWeight="Bold"/>
+                <TextBlock Text="{Binding Album.Title}" Classes="h1" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="link" FontSize="14" VerticalAlignment="Center"
+                            Content="{Binding Album.AlbumArtist}" Command="{Binding OpenArtistCommand}"
+                            ToolTip.Tip="Go to artist"/>
+                    <TextBlock Text="•" Classes="subtle" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding MetaLine}" Classes="subtle" FontSize="14" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Margin="0,8,0,0">
+                    <Button Classes="accent compact" Margin="0,0,8,8" Command="{Binding PlayCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Data="{StaticResource IconPlay}" Width="13" Height="13" Stretch="Uniform"
+                                  Fill="{StaticResource CatppuccinCrust}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Play"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Shuffle" Command="{Binding PlayShuffledCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Play next" Command="{Binding PlayNextCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Add to queue" Command="{Binding AddToQueueCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Queue shuffled" Command="{Binding AddToQueueShuffledCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Add to playlist">
+                        <Button.Flyout>
+                            <Flyout>
+                                <ItemsControl ItemsSource="{Binding Playlists}" MinWidth="180">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="models:Playlist">
+                                            <Button Classes="ghost" Content="{Binding Name}"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                    Command="{Binding DataContext.AddToPlaylistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </WrapPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Track list -->
+        <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding Tracks}"
+                 controls:DragDropBehavior.DragSource="Library"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:Track">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" Height="44" Background="Transparent"
+                          controls:DoubleTappedBehavior.Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                          controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                        <TextBlock Grid.Column="0" Text="{Binding TrackNumber}" Width="34" TextAlignment="Center"
+                                   VerticalAlignment="Center" Classes="subtle" FontSize="13"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                            <Button Classes="link" HorizontalAlignment="Left" FontSize="11"
+                                    Content="{Binding DisplayArtist}"
+                                    Command="{Binding DataContext.OpenTrackArtistCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                    CommandParameter="{Binding}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Classes="subtle" FontSize="12"
+                                   Margin="0,0,8,0"
+                                   Text="{Binding Duration, Converter={StaticResource DurationConverter}}"/>
+                        <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconPlay}"
+                                             Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                             CommandParameter="{Binding}"/>
+                        <Grid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Play"
+                                          Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Play next"
+                                          Command="{Binding DataContext.PlayTrackNextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Add to queue"
+                                          Command="{Binding DataContext.AddTrackToQueueCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                          CommandParameter="{Binding}">
+                                    <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </Grid.ContextMenu>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

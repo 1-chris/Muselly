@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="Muselly.App.Views.ArtistDetailView"
+             x:DataType="vm:ArtistDetailViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="24,8,24,18">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,18">
+            <controls:AlbumArt Grid.Column="0" Width="160" Height="160" CornerRadius="80"
+                               Source="{Binding ImagePath}"/>
+            <StackPanel Grid.Column="1" Margin="22,0,0,0" VerticalAlignment="Bottom" Spacing="10">
+                <TextBlock Text="ARTIST" Classes="caption" Foreground="{StaticResource CatppuccinMauve}"
+                           FontWeight="Bold"/>
+                <TextBlock Text="{Binding Artist.Name}" Classes="h1" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Subtitle}" Classes="subtle" FontSize="14"/>
+                <WrapPanel Margin="0,8,0,0">
+                    <Button Classes="accent compact" Margin="0,0,8,8" Command="{Binding PlayCommand}"><TextBlock Text="Play"/></Button>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Shuffle" Command="{Binding PlayShuffledCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Play next" Command="{Binding PlayNextCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Add to queue" Command="{Binding AddToQueueCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="Queue shuffled" Command="{Binding AddToQueueShuffledCommand}"/>
+                </WrapPanel>
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="12">
+
+                <!-- Biography -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Loading biography…" Classes="subtle" FontSize="13"
+                               IsVisible="{Binding IsLoadingBiography}"/>
+
+                    <Button Classes="pill" Content="Load biography" HorizontalAlignment="Left"
+                            Command="{Binding FetchBiographyCommand}"
+                            IsVisible="{Binding CanFetchBiography}"/>
+
+                    <StackPanel Spacing="4" IsVisible="{Binding HasBiography}">
+                        <TextBlock Text="{Binding Biography}" TextWrapping="Wrap"
+                                   MaxLines="{Binding BiographyMaxLines}" TextTrimming="CharacterEllipsis"
+                                   FontSize="13" LineHeight="20" Foreground="{StaticResource CatppuccinSubtext1}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Classes="link" FontSize="12" Content="{Binding ExpandLabel}"
+                                    Command="{Binding ToggleBiographyCommand}"/>
+                            <TextBlock Classes="caption" VerticalAlignment="Center"
+                                       Text="{Binding BiographySource, StringFormat='from {0}'}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Text="Albums" Classes="h2"/>
+                <ItemsControl ItemsSource="{Binding Albums}" controls:DragDropBehavior.DragSource="Library">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Album">
+                            <Button Classes="ghost" Padding="8" CornerRadius="12"
+                                    Command="{Binding DataContext.OpenAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Width="150" Spacing="8">
+                                    <controls:AlbumArt Width="150" Height="150" Source="{Binding ArtworkPath}"/>
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                    <TextBlock FontSize="12" Classes="subtle"
+                                               Text="{Binding Year}"/>
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Play"
+                                                  Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                  CommandParameter="{Binding}"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

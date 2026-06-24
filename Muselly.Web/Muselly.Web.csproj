@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0-browser</TargetFramework>
+        <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+        <OutputType>Exe</OutputType>
+        <Nullable>enable</Nullable>
+        <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <WasmMainJSPath>wwwroot/main.js</WasmMainJSPath>
+        <PublishTrimmed>false</PublishTrimmed>
+        <InvariantGlobalization>true</InvariantGlobalization>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Browser" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+    </ItemGroup>
+    <ItemGroup>
+        <WasmExtraFilesToDeploy Include="wwwroot/index.html" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Muselly.App\Muselly.App.csproj" />
+        <ProjectReference Include="..\Muselly.Core\Muselly.Core.csproj" />
+    </ItemGroup>
+</Project>

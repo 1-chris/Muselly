@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="760"
+             x:Class="Muselly.App.Views.NowPlayingView"
+             x:DataType="vm:NowPlayingViewModel">
+
+    <Grid RowDefinitions="*,Auto" Margin="40,20,40,28">
+
+        <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="22" MaxWidth="560">
+            <Button Classes="plain" HorizontalAlignment="Center" Command="{Binding OpenAlbumCommand}"
+                    ToolTip.Tip="Go to album">
+                <Border CornerRadius="20">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" BlurRadius="40" OffsetX="0" OffsetY="16" Opacity="0.45"/>
+                    </Border.Effect>
+                    <controls:AlbumArt Width="340" Height="340" CornerRadius="20" Source="{Binding ArtworkPath}"/>
+                </Border>
+            </Button>
+
+            <StackPanel Spacing="4" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding Title}" Classes="h1" HorizontalAlignment="Center"
+                           TextAlignment="Center" TextWrapping="Wrap"/>
+                <Button Classes="link" HorizontalAlignment="Center" FontSize="16"
+                        Content="{Binding Artist}" Command="{Binding OpenArtistCommand}" ToolTip.Tip="Go to artist"/>
+                <Button Classes="link" HorizontalAlignment="Center" FontSize="13"
+                        Content="{Binding AlbumTitle}" Command="{Binding OpenAlbumCommand}" ToolTip.Tip="Go to album"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Transport (bound to the shared player view model) -->
+        <StackPanel Grid.Row="1" Spacing="10" MaxWidth="640" HorizontalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Width="44" TextAlignment="Right" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{StaticResource CatppuccinSubtext0}"
+                           Text="{Binding Player.Position, Converter={StaticResource DurationConverter}}"/>
+                <controls:Scrobbler Grid.Column="1" Margin="12,0" MinWidth="360"
+                                    Position="{Binding Player.Position}" Duration="{Binding Player.Duration}"
+                                    SeekCommand="{Binding Player.SeekCommand}"/>
+                <TextBlock Grid.Column="2" Width="44" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{StaticResource CatppuccinSubtext0}"
+                           Text="{Binding Player.Duration, Converter={StaticResource DurationConverter}}"/>
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                <controls:IconButton Icon="{StaticResource IconShuffle}" IconSize="20"
+                                     Classes.active="{Binding Player.ShuffleActive}"
+                                     Command="{Binding Player.ToggleShuffleCommand}" ToolTip.Tip="Shuffle"/>
+                <controls:IconButton Icon="{StaticResource IconPrevious}" IconSize="24"
+                                     Command="{Binding Player.PreviousCommand}" IsEnabled="{Binding Player.CanGoPrevious}"
+                                     ToolTip.Tip="Previous"/>
+                <Panel>
+                    <controls:IconButton Classes="accent" Icon="{StaticResource IconPlay}" IconSize="28"
+                                         Width="62" Height="62" CornerRadius="31"
+                                         IsVisible="{Binding !Player.IsPlaying}"
+                                         Command="{Binding Player.PlayPauseCommand}" ToolTip.Tip="Play"/>
+                    <controls:IconButton Classes="accent" Icon="{StaticResource IconPause}" IconSize="28"
+                                         Width="62" Height="62" CornerRadius="31"
+                                         IsVisible="{Binding Player.IsPlaying}"
+                                         Command="{Binding Player.PlayPauseCommand}" ToolTip.Tip="Pause"/>
+                </Panel>
+                <controls:IconButton Icon="{StaticResource IconNext}" IconSize="24"
+                                     Command="{Binding Player.NextCommand}" IsEnabled="{Binding Player.CanGoNext}"
+                                     ToolTip.Tip="Next"/>
+                <Panel>
+                    <controls:IconButton Icon="{StaticResource IconRepeat}" IconSize="20"
+                                         Classes.active="{Binding Player.RepeatActive}"
+                                         IsVisible="{Binding !Player.RepeatOne}"
+                                         Command="{Binding Player.CycleRepeatCommand}" ToolTip.Tip="Repeat"/>
+                    <controls:IconButton Icon="{StaticResource IconRepeatOne}" IconSize="20" Classes="active"
+                                         IsVisible="{Binding Player.RepeatOne}"
+                                         Command="{Binding Player.CycleRepeatCommand}" ToolTip.Tip="Repeat one"/>
+                </Panel>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,43 @@
+## .NET / build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+## Visual Studio
+.vs/
+
+## VS Code
+.vscode/
+
+## macOS
+.DS_Store
+
+## Publish output
+dist/
+
+## Bundled ffmpeg build (fetched/built by scripts/build-ffmpeg.sh; produced in CI, not committed)
+build/
+third_party/ffmpeg/
+
+## App-local artifacts
+settings.json
+*.db
+*.db-shm
+*.db-wal
+
+## Android signing
+*.keystore
+*.jks

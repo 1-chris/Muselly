@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:svc="using:Muselly.App.Services"
+             xmlns:controls="using:Muselly.App.Controls"
+             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="600"
+             x:Class="Muselly.App.Views.LyricsView"
+             x:DataType="vm:LyricsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.lyrics ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.lyrics ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.lyricline">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6,5"/>
+            <Setter Property="Foreground" Value="{StaticResource CatppuccinOverlay1}"/>
+        </Style>
+        <Style Selector="Button.lyricline:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource CatppuccinSurface0}"/>
+        </Style>
+        <Style Selector="Button.lyricline.active">
+            <Setter Property="Foreground" Value="{StaticResource CatppuccinText}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <!-- Underline the current line's text (not the small furigana reading). -->
+        <Style Selector="Button.lyricline.active TextBlock.line">
+            <Setter Property="TextDecorations" Value="Underline"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Script toggle (Japanese only). Font-size controls live in the drawer header. -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10"
+                    IsVisible="{Binding HasJapanese}">
+            <ToggleButton Classes="tab" Content="Original" IsChecked="{Binding IsOriginalScript}"
+                          Command="{Binding SetScriptCommand}" CommandParameter="0"/>
+            <ToggleButton Classes="tab" Content="Furigana" IsChecked="{Binding IsFuriganaScript}"
+                          Command="{Binding SetScriptCommand}" CommandParameter="1"/>
+            <ToggleButton Classes="tab" Content="Romaji" IsChecked="{Binding IsRomajiScript}"
+                          Command="{Binding SetScriptCommand}" CommandParameter="2"/>
+        </StackPanel>
+
+        <Panel Grid.Row="1">
+            <!-- Status / empty / loading -->
+            <StackPanel IsVisible="{Binding !HasLyrics}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Spacing="10" MaxWidth="260">
+                <Path Data="{StaticResource IconSongs}" Fill="{StaticResource CatppuccinOverlay0}"
+                      Width="40" Height="40" Stretch="Uniform" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding StatusText}" Classes="subtle" HorizontalAlignment="Center"
+                           TextAlignment="Center" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <ListBox Name="LyricsList" Classes="lyrics" ItemsSource="{Binding Lines}" IsVisible="{Binding HasLyrics}"
+                     Background="Transparent" SelectionMode="Single"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LyricsLineViewModel">
+                        <Button Classes="lyricline" Classes.active="{Binding IsActive}"
+                                Command="{Binding DataContext.SeekToLineCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                CommandParameter="{Binding}">
+                            <Panel>
+                                <!-- Plain (original or romaji) -->
+                                <TextBlock Classes="line" Text="{Binding DisplayText}" TextWrapping="Wrap"
+                                           IsVisible="{Binding !ShowFurigana}"
+                                           FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                           LineHeight="{Binding DataContext.LineSpacing, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                <!-- Furigana: reading above each kanji run -->
+                                <ItemsControl ItemsSource="{Binding FuriganaSegments}" IsVisible="{Binding ShowFurigana}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="svc:FuriganaSegment">
+                                            <StackPanel Spacing="0">
+                                                <TextBlock Text="{Binding Ruby}" TextAlignment="Center"
+                                                           Foreground="{StaticResource CatppuccinSubtext0}"
+                                                           FontSize="{Binding DataContext.RubyFontSize, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                           Height="{Binding DataContext.RubyLineHeight, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                                <TextBlock Classes="line" Text="{Binding Text}"
+                                                           FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                           LineHeight="{Binding DataContext.LineSpacing, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Panel>
+                        </Button>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Panel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,240 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             xmlns:theming="using:Muselly.App.Theming"
+             xmlns:sys="using:System"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="800"
+             x:Class="Muselly.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="24,18" Spacing="18" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Classes="h1"/>
+
+            <!-- Music folders -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Music folders" Classes="h3"/>
+                            <TextBlock Classes="caption" Text="Folders Muselly scans to build your library."/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="accent" Command="{Binding AddFolderCommand}"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Data="{StaticResource IconPlus}" Width="15" Height="15" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinCrust}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Add folder"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding MusicFolders}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sys:String">
+                                <Border Classes="surface" Padding="12,8" Margin="0,3">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Path Grid.Column="0" Data="{StaticResource IconFolder}" Width="18" Height="18"
+                                              Stretch="Uniform" Fill="{StaticResource CatppuccinBlue}"
+                                              VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding}" Margin="12,0"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource CatppuccinText}"/>
+                                        <controls:IconButton Grid.Column="2" Classes="small"
+                                                             Icon="{StaticResource IconDelete}"
+                                                             Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                             CommandParameter="{Binding}" ToolTip.Tip="Remove"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <CheckBox Content="Include sub-folders when scanning"
+                              IsChecked="{Binding ScanSubdirectories}"/>
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                        <Button Grid.Column="0" Classes="pill" Command="{Binding RescanCommand}"
+                                IsEnabled="{Binding !IsScanning}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Data="{StaticResource IconRefresh}" Width="15" Height="15" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinText}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Rescan library"/>
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                            <TextBlock Text="{Binding ScanStatus}" Classes="caption"/>
+                            <ProgressBar Value="{Binding ScanFraction}" Maximum="1" Height="6"
+                                         IsVisible="{Binding IsScanning}"
+                                         Foreground="{StaticResource CatppuccinMauve}"
+                                         Background="{StaticResource CatppuccinSurface1}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Web metadata -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Online metadata" Classes="h3"/>
+                        <TextBlock Classes="caption"
+                                   Text="Fill in missing artwork, biographies and lyrics from free public sources (no account needed)."/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                        <Button Grid.Column="0" Classes="pill" Command="{Binding ScanMissingArtworkCommand}"
+                                IsEnabled="{Binding !IsArtworkScanning}" VerticalAlignment="Top">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Data="{StaticResource IconAlbum}" Width="15" Height="15" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinText}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Scan for missing album art"/>
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                            <TextBlock Text="{Binding ArtworkScanStatus}" Classes="caption" TextWrapping="Wrap"/>
+                            <ProgressBar Value="{Binding ArtworkScanFraction}" Maximum="1" Height="6"
+                                         IsVisible="{Binding IsArtworkScanning}"
+                                         Foreground="{StaticResource CatppuccinMauve}"
+                                         Background="{StaticResource CatppuccinSurface1}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Artist biographies" Classes="caption"
+                                       Foreground="{StaticResource CatppuccinText}" FontWeight="SemiBold"/>
+                            <TextBlock Classes="caption"
+                                       Text="Automatically fetch an artist's biography and image when you open their page."/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutomaticArtistBiography}"
+                                      VerticalAlignment="Center" OnContent="On" OffContent="Off"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="Appearance" Classes="h3"/>
+                    <TextBlock Classes="caption" Text="Catppuccin flavour"/>
+                    <ItemsControl ItemsSource="{Binding Themes}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="theming:ThemeDefinition">
+                                <Button Classes="pill" Content="{Binding Name}" Margin="0,0,8,8"
+                                        Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Classes="caption" Text="Interface scale" Margin="0,6,0,0"/>
+                    <Slider Minimum="0.8" Maximum="1.4" Value="{Binding FontScale}" Width="320"
+                            HorizontalAlignment="Left" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Equalizer -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="Equalizer" Classes="h3"/>
+                            <TextBlock Classes="caption" Text="10-band graphic EQ applied to all playback."/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding EqEnabled}" VerticalAlignment="Center"
+                                      OnContent="On" OffContent="Off"/>
+                    </Grid>
+
+                    <!-- Presets -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ItemsControl ItemsSource="{Binding EqPresets}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="sys:String">
+                                    <Button Classes="pill" Content="{Binding}" Margin="0,0,8,0"
+                                            Command="{Binding DataContext.ApplyEqPresetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Classes="ghost" Content="Reset" Command="{Binding ResetEqCommand}"/>
+                    </StackPanel>
+
+                    <!-- Bands -->
+                    <Border Classes="surface" Padding="14,16">
+                        <ItemsControl ItemsSource="{Binding EqBands}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:EqBandViewModel">
+                                    <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                        <controls:EqSlider Value="{Binding Gain, Mode=TwoWay}"
+                                                           Minimum="-12" Maximum="12"
+                                                           Height="150" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Label}" Classes="caption"
+                                                   HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Formats -->
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Supported formats" Classes="h3"/>
+                    <ItemsControl ItemsSource="{Binding SupportedFormats}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sys:String">
+                                <Border Background="{StaticResource CatppuccinSurface1}" CornerRadius="8"
+                                        Padding="12,6" Margin="0,0,8,8">
+                                    <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="12"
+                                               Foreground="{StaticResource CatppuccinTeal}"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Library stats -->
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Library" Classes="h3"/>
+                    <StackPanel Orientation="Horizontal" Spacing="32">
+                        <StackPanel>
+                            <TextBlock Text="{Binding TrackCount}" Classes="h1"/>
+                            <TextBlock Text="Tracks" Classes="caption"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="{Binding AlbumCount}" Classes="h1"/>
+                            <TextBlock Text="Albums" Classes="caption"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="{Binding ArtistCount}" Classes="h1"/>
+                            <TextBlock Text="Artists" Classes="caption"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

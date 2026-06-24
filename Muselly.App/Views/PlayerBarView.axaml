@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="88"
+             x:Class="Muselly.App.Views.PlayerBarView"
+             x:DataType="vm:PlayerBarViewModel">
+
+    <Border Background="{StaticResource CatppuccinMantle}" BorderBrush="{StaticResource CatppuccinCrust}"
+            BorderThickness="0,1,0,0" Padding="16,10">
+        <Grid ColumnDefinitions="*,2*,*" VerticalAlignment="Center">
+
+            <!-- Now playing: mini art + title/artist -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button Classes="plain" Command="{Binding OpenAlbumCommand}" ToolTip.Tip="Go to album">
+                    <controls:AlbumArt Width="56" Height="56" CornerRadius="8" Source="{Binding ArtworkPath}"/>
+                </Button>
+                <StackPanel VerticalAlignment="Center" MaxWidth="220">
+                    <Button Classes="plain" HorizontalAlignment="Left" Command="{Binding ShowNowPlayingCommand}"
+                            ToolTip.Tip="Open Now Playing">
+                        <TextBlock Text="{Binding TrackTitle}" FontWeight="SemiBold" FontSize="14"
+                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                    </Button>
+                    <Button Classes="link" HorizontalAlignment="Left" FontSize="12" Margin="0,2,0,0"
+                            Content="{Binding TrackArtist}" Command="{Binding OpenArtistCommand}"
+                            ToolTip.Tip="Go to artist"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Transport + scrobbler -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                    <controls:IconButton Icon="{StaticResource IconShuffle}" IconSize="18"
+                                         Classes.active="{Binding ShuffleActive}"
+                                         Command="{Binding ToggleShuffleCommand}" ToolTip.Tip="Shuffle"/>
+                    <controls:IconButton Icon="{StaticResource IconPrevious}"
+                                         Command="{Binding PreviousCommand}" IsEnabled="{Binding CanGoPrevious}"
+                                         ToolTip.Tip="Previous"/>
+
+                    <Panel>
+                        <controls:IconButton Classes="accent" Icon="{StaticResource IconPlay}" IconSize="24"
+                                             Width="50" Height="50" CornerRadius="25"
+                                             IsVisible="{Binding !IsPlaying}"
+                                             Command="{Binding PlayPauseCommand}" ToolTip.Tip="Play"/>
+                        <controls:IconButton Classes="accent" Icon="{StaticResource IconPause}" IconSize="24"
+                                             Width="50" Height="50" CornerRadius="25"
+                                             IsVisible="{Binding IsPlaying}"
+                                             Command="{Binding PlayPauseCommand}" ToolTip.Tip="Pause"/>
+                    </Panel>
+
+                    <controls:IconButton Icon="{StaticResource IconNext}"
+                                         Command="{Binding NextCommand}" IsEnabled="{Binding CanGoNext}"
+                                         ToolTip.Tip="Next"/>
+                    <Panel>
+                        <controls:IconButton Icon="{StaticResource IconRepeat}" IconSize="18"
+                                             Classes.active="{Binding RepeatActive}"
+                                             IsVisible="{Binding !RepeatOne}"
+                                             Command="{Binding CycleRepeatCommand}" ToolTip.Tip="Repeat"/>
+                        <controls:IconButton Icon="{StaticResource IconRepeatOne}" IconSize="18"
+                                             Classes="active"
+                                             IsVisible="{Binding RepeatOne}"
+                                             Command="{Binding CycleRepeatCommand}" ToolTip.Tip="Repeat one"/>
+                    </Panel>
+                </StackPanel>
+
+                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="0" Text="{Binding Position, Converter={StaticResource DurationConverter}}"
+                               FontSize="11" VerticalAlignment="Center" Width="40" TextAlignment="Right"
+                               Foreground="{StaticResource CatppuccinSubtext0}"/>
+                    <controls:Scrobbler Grid.Column="1" Margin="10,0"
+                                        Position="{Binding Position}" Duration="{Binding Duration}"
+                                        SeekCommand="{Binding SeekCommand}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Duration, Converter={StaticResource DurationConverter}}"
+                               FontSize="11" VerticalAlignment="Center" Width="40"
+                               Foreground="{StaticResource CatppuccinSubtext0}"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- Volume + queue -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                        VerticalAlignment="Center">
+                <Panel>
+                    <controls:IconButton Classes="small" Icon="{StaticResource IconVolumeHigh}"
+                                         IsVisible="{Binding !IsMuted}"
+                                         Command="{Binding ToggleMuteCommand}" ToolTip.Tip="Mute"/>
+                    <controls:IconButton Classes="small" Icon="{StaticResource IconVolumeMute}"
+                                         IsVisible="{Binding IsMuted}"
+                                         Command="{Binding ToggleMuteCommand}" ToolTip.Tip="Unmute"/>
+                </Panel>
+                <controls:LevelSlider Width="110" Value="{Binding Volume, Mode=TwoWay}"/>
+                <controls:IconButton Classes="flat" Icon="{StaticResource IconLyrics}"
+                                     Command="{Binding ToggleLyricsCommand}" ToolTip.Tip="Lyrics"/>
+                <controls:IconButton Classes="flat" Icon="{StaticResource IconQueue}"
+                                     Command="{Binding ToggleQueueCommand}" ToolTip.Tip="Queue"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

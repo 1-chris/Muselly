@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="700"
+             x:Class="Muselly.App.Views.PlaylistsView"
+             x:DataType="vm:PlaylistsViewModel">
+
+    <Grid ColumnDefinitions="320,*" Margin="24,18">
+
+        <!-- Playlist list -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,16,0">
+            <TextBlock Grid.Row="0" Text="Playlists" Classes="h1" Margin="0,0,0,16"/>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                <TextBox Grid.Column="0" Classes="field" PlaceholderText="New playlist name…"
+                         Text="{Binding NewPlaylistName}"/>
+                <controls:IconButton Grid.Column="1" Classes="accent" Icon="{StaticResource IconPlus}"
+                                     Width="38" Height="38" CornerRadius="9" Margin="8,0,0,0"
+                                     Command="{Binding CreateCommand}" ToolTip.Tip="Create playlist"/>
+            </Grid>
+
+            <ListBox Grid.Row="2" Classes="tracks" ItemsSource="{Binding Playlists}"
+                     SelectedItem="{Binding SelectedPlaylist}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:Playlist">
+                        <Grid ColumnDefinitions="Auto,*,Auto" Height="46">
+                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="8"
+                                    Background="{StaticResource CatppuccinSurface1}">
+                                <Path Data="{StaticResource IconPlaylist}" Width="20" Height="20" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinMauve}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0" Spacing="1">
+                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                <TextBlock Classes="subtle" FontSize="11"
+                                           Text="{Binding TrackCount, StringFormat='{}{0} tracks'}"/>
+                            </StackPanel>
+                            <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconDelete}"
+                                                 Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                 CommandParameter="{Binding}" ToolTip.Tip="Delete"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- Selected playlist -->
+        <Panel Grid.Column="1">
+            <StackPanel IsVisible="{Binding !HasSelection}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Spacing="12">
+                <Path Data="{StaticResource IconPlaylist}" Fill="{StaticResource CatppuccinOverlay0}"
+                      Width="56" Height="56" Stretch="Uniform" HorizontalAlignment="Center"/>
+                <TextBlock Text="Select or create a playlist" Classes="subtle"/>
+            </StackPanel>
+
+            <Grid IsVisible="{Binding HasSelection}" RowDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Row="0" Text="{Binding SelectedPlaylist.Name}" Classes="h1"/>
+
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Margin="0,14,0,14">
+                    <Button Classes="accent" Command="{Binding PlayCommand}"><TextBlock Text="Play"/></Button>
+                    <Button Classes="pill" Content="Shuffle" Command="{Binding ShuffleCommand}"/>
+                    <Button Classes="pill" Content="Add to queue" Command="{Binding AddToQueueCommand}"/>
+                    <Button Classes="pill" Content="Randomize order" Command="{Binding RandomizeCommand}"/>
+                    <Button Classes="pill" Content="Sort">
+                        <Button.Flyout>
+                            <Flyout>
+                                <StackPanel MinWidth="160">
+                                    <Button Classes="ghost" Content="Title" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding SortCommand}" CommandParameter="{x:Static models:TrackSortField.Title}"/>
+                                    <Button Classes="ghost" Content="Artist" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding SortCommand}" CommandParameter="{x:Static models:TrackSortField.Artist}"/>
+                                    <Button Classes="ghost" Content="Album" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding SortCommand}" CommandParameter="{x:Static models:TrackSortField.Album}"/>
+                                    <Button Classes="ghost" Content="Year" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding SortCommand}" CommandParameter="{x:Static models:TrackSortField.Year}"/>
+                                    <Button Classes="ghost" Content="Duration" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding SortCommand}" CommandParameter="{x:Static models:TrackSortField.Duration}"/>
+                                    <Button Classes="ghost" Content="Date added" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding SortCommand}" CommandParameter="{x:Static models:TrackSortField.DateAdded}"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+
+                <ListBox Grid.Row="2" Classes="tracks" ItemsSource="{Binding SelectedTracks}"
+                         controls:DragDropBehavior.DragSource="Library"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:Track">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" Height="48" Background="Transparent"
+                                  controls:DoubleTappedBehavior.Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                  controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                                <controls:AlbumArt Grid.Column="0" Width="40" Height="40" CornerRadius="6"
+                                                   Source="{Binding ArtworkPath}"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0" Spacing="1">
+                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                    <TextBlock Text="{Binding DisplayArtist}" FontSize="11" Classes="subtle"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconPlay}"
+                                                     Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                     CommandParameter="{Binding}"/>
+                                <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconClose}"
+                                                     Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                     CommandParameter="{Binding}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Panel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="600"
+             x:Class="Muselly.App.Views.QueueView"
+             x:DataType="vm:QueueViewModel">
+
+    <Panel>
+        <!-- Empty state -->
+        <StackPanel IsVisible="{Binding !Count}" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
+            <Path Data="{StaticResource IconQueue}" Fill="{StaticResource CatppuccinOverlay0}"
+                  Width="42" Height="42" Stretch="Uniform" HorizontalAlignment="Center"/>
+            <TextBlock Text="Queue is empty" Classes="subtle" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <ListBox Name="QueueList" Classes="tracks" ItemsSource="{Binding Items}"
+                 SelectedItem="{Binding CurrentTrack, Mode=OneWay}"
+                 IsVisible="{Binding Count}"
+                 controls:DragDropBehavior.DragSource="Queue"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:Track">
+                    <Grid ColumnDefinitions="Auto,*,Auto" Height="48" Background="Transparent"
+                          controls:DoubleTappedBehavior.Command="{Binding DataContext.PlayCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                          controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                        <controls:AlbumArt Grid.Column="0" Width="40" Height="40" CornerRadius="6"
+                                           Source="{Binding ArtworkPath}"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0" Spacing="1">
+                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                            <TextBlock Text="{Binding DisplayArtist}" FontSize="11" Classes="subtle"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:IconButton Classes="small" Icon="{StaticResource IconPlay}"
+                                                 Command="{Binding DataContext.PlayCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                 CommandParameter="{Binding}" ToolTip.Tip="Play"/>
+                            <controls:IconButton Classes="small" Icon="{StaticResource IconClose}"
+                                                 Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                 CommandParameter="{Binding}" ToolTip.Tip="Remove"/>
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Drop position indicator (positioned during drag-over) -->
+        <Border Name="DropIndicator" Height="2" CornerRadius="1" Background="{StaticResource CatppuccinMauve}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="0" IsVisible="False"
+                IsHitTestVisible="False"/>
+    </Panel>
+</UserControl>

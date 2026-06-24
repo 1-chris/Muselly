@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    </PropertyGroup>
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+        <!-- Japanese romanisation / furigana for the lyrics panel (key-free, on-device). -->
+        <PackageReference Include="Kawazu" Version="1.1.4" />
+        <PackageReference Include="LibNMeCab.IpaDicBin" Version="0.10.0" GeneratePathProperty="true" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Muselly.Core\Muselly.Core.csproj" />
+    </ItemGroup>
+    <!-- The IpaDicBin package's own copy target uses Windows path separators and silently no-ops on
+         macOS/Linux, so copy the IPADIC dictionary to the output ourselves with a portable glob. -->
+    <ItemGroup Condition="'$(PkgLibNMeCab_IpaDicBin)' != ''">
+        <Content Include="$(PkgLibNMeCab_IpaDicBin)/content/IpaDic/*.*">
+            <Link>IpaDic/%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Visible>false</Visible>
+        </Content>
+    </ItemGroup>
+</Project>

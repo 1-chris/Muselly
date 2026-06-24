@@ -1,0 +1,252 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="900"
+             x:Class="Muselly.App.Views.ConnectView"
+             x:DataType="vm:ConnectViewModel">
+
+    <Panel>
+        <ScrollViewer>
+            <StackPanel Margin="24,18" Spacing="18" MaxWidth="820" HorizontalAlignment="Left">
+                <TextBlock Text="Connect" Classes="h1"/>
+                <TextBlock Classes="caption"
+                           Text="Share this library with other Muselly apps, or connect to someone else's server. All traffic is end-to-end encrypted (TLS 1.3)."/>
+
+                <!-- Built-in server -->
+                <Border Classes="card">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Built-in server" Classes="h3"/>
+                                <TextBlock Classes="caption" Text="{Binding StatusText}"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ServerEnabled}" VerticalAlignment="Center"
+                                          OnContent="On" OffContent="Off"/>
+                        </Grid>
+
+                        <Border Classes="surface" Padding="12,10" IsVisible="{Binding IsRunning}">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="Local address" Width="110" Classes="caption"
+                                               VerticalAlignment="Center"/>
+                                    <SelectableTextBlock Grid.Column="1" Text="{Binding LocalIp}" FontWeight="SemiBold"
+                                                         Foreground="{StaticResource CatppuccinText}"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="External IP" Width="110" Classes="caption"
+                                               VerticalAlignment="Center"/>
+                                    <SelectableTextBlock Grid.Column="1" Text="{Binding ExternalIp}" FontWeight="SemiBold"
+                                                         VerticalAlignment="Center"
+                                                         Foreground="{StaticResource CatppuccinText}"/>
+                                    <Button Grid.Column="2" Classes="ghost" Content="Refresh"
+                                            Command="{Binding RefreshExternalIpCommand}"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="Port" Width="110" Classes="caption"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Port}" FontWeight="SemiBold"
+                                               Foreground="{StaticResource CatppuccinText}"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="Fingerprint" Width="110" Classes="caption"
+                                               VerticalAlignment="Top"/>
+                                    <SelectableTextBlock Grid.Column="1" Text="{Binding Fingerprint}" FontFamily="monospace"
+                                                         TextWrapping="Wrap" FontSize="11"
+                                                         Foreground="{StaticResource CatppuccinTeal}"/>
+                                </Grid>
+                                <TextBlock Classes="caption" TextWrapping="Wrap"
+                                           Text="Share these details with people you want to connect. They verify the fingerprint to be sure they're connecting to you. Use the external IP over the internet (UPnP on), or the local address on the same network."/>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button Classes="accent" Click="OnCopyDetails">
+                                        <TextBlock Text="Copy details to share"/>
+                                    </Button>
+                                    <TextBlock Text="{Binding CopyStatus}" Classes="caption" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Server configuration -->
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="12">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Server name" Width="150"
+                                       VerticalAlignment="Center" Classes="caption"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ServerName}" Watermark="This computer"
+                                     HorizontalAlignment="Left" Width="280"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Opus bitrate (kbps)" Width="150"
+                                       VerticalAlignment="Center" Classes="caption"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding BitrateOptions}"
+                                      SelectedItem="{Binding SelectedBitrate}" Width="120" HorizontalAlignment="Left"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Transcode cache (GB)" Width="150"
+                                       VerticalAlignment="Center" Classes="caption"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding TranscodeCacheGb}" Width="120"
+                                     HorizontalAlignment="Left"/>
+
+                            <Grid Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Guest access" Foreground="{StaticResource CatppuccinText}"
+                                               FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Classes="caption" Text="Allow connecting without a username or password (browse + play)."/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding GuestEnabled}" VerticalAlignment="Center"
+                                              OnContent="On" OffContent="Off"/>
+                            </Grid>
+
+                            <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="UPnP port forwarding" Foreground="{StaticResource CatppuccinText}"
+                                               FontWeight="SemiBold" FontSize="12"/>
+                                    <TextBlock Classes="caption" Text="Try to open the port on your router so the server is reachable from outside your network."/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding UpnpEnabled}" VerticalAlignment="Center"
+                                              OnContent="On" OffContent="Off"/>
+                            </Grid>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <Button Classes="accent" Command="{Binding SaveServerSettingsCommand}">
+                                <TextBlock Text="Save settings"/>
+                            </Button>
+                            <TextBlock Text="{Binding SettingsStatus}" Classes="caption" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Users -->
+                <Border Classes="card">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Users" Classes="h3"/>
+                            <TextBlock Classes="caption" Text="Accounts that can sign in. Admins can manage the server; Users can browse and play."/>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding Users}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ServerUserRow">
+                                    <Border Classes="surface" Padding="12,8" Margin="0,3">
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Username}" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource CatppuccinText}"/>
+                                            <Border Grid.Column="1" Background="{StaticResource CatppuccinSurface1}"
+                                                    CornerRadius="6" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding RoleText}" FontSize="11"
+                                                           Foreground="{StaticResource CatppuccinMauve}"/>
+                                            </Border>
+                                            <Button Grid.Column="2" Classes="ghost" Content="Toggle role" Margin="0,0,8,0"
+                                                    Command="{Binding DataContext.PromoteUserCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconDelete}"
+                                                                 Command="{Binding DataContext.RemoveUserCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                 CommandParameter="{Binding}" ToolTip.Tip="Remove user"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Classes="surface" Padding="12,10">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Add user" FontWeight="SemiBold" FontSize="12"
+                                           Foreground="{StaticResource CatppuccinText}"/>
+                                <Grid ColumnDefinitions="*,*,Auto,Auto" ColumnSpacing="10">
+                                    <TextBox Grid.Column="0" Text="{Binding NewUsername}" Watermark="Username"/>
+                                    <TextBox Grid.Column="1" Text="{Binding NewPassword}" Watermark="Password" PasswordChar="•"/>
+                                    <ComboBox Grid.Column="2" ItemsSource="{Binding RoleOptions}"
+                                              SelectedItem="{Binding NewUserRole}" Width="110"/>
+                                    <Button Grid.Column="3" Classes="accent" Command="{Binding AddUserCommand}">
+                                        <TextBlock Text="Add"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Remote servers -->
+                <Border Classes="card">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Connect to a server" Classes="h3"/>
+                            <TextBlock Classes="caption" Text="Enter another Muselly server's address. Its library merges into yours; play streams in transcoded to Opus."/>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBox Grid.Column="0" Text="{Binding AddHost}" Watermark="Host or IP address"/>
+                            <TextBox Grid.Column="1" Text="{Binding AddPort}" Watermark="Port" Width="100"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <TextBox Grid.Column="0" Text="{Binding AddUsername}" Watermark="Username"
+                                     IsEnabled="{Binding !AddGuest}"/>
+                            <TextBox Grid.Column="1" Text="{Binding AddPassword}" Watermark="Password" PasswordChar="•"
+                                     IsEnabled="{Binding !AddGuest}"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="20">
+                            <CheckBox Content="Connect as guest" IsChecked="{Binding AddGuest}"/>
+                            <CheckBox Content="Remember password" IsChecked="{Binding AddRemember}"
+                                      IsEnabled="{Binding !AddGuest}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <Button Classes="accent" Command="{Binding ConnectCommand}"
+                                    IsEnabled="{Binding !IsConnecting}">
+                                <TextBlock Text="Connect"/>
+                            </Button>
+                            <TextBlock Text="{Binding ConnectStatus}" Classes="caption" VerticalAlignment="Center"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding Remotes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RemoteServerRow">
+                                    <Border Classes="surface" Padding="12,10" Margin="0,3">
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Display}" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource CatppuccinText}"/>
+                                                <TextBlock Text="{Binding Address}" Classes="caption"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{Binding StatusText}" Classes="caption"
+                                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <Button Grid.Column="2" Classes="pill" Content="Connect" Margin="0,0,8,0"
+                                                    IsVisible="{Binding NotConnected}"
+                                                    Command="{Binding DataContext.ConnectSavedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <Button Grid.Column="2" Classes="pill" Content="Disconnect" Margin="0,0,8,0"
+                                                    IsVisible="{Binding Connected}"
+                                                    Command="{Binding DataContext.DisconnectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconDelete}"
+                                                                 Command="{Binding DataContext.ForgetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                 CommandParameter="{Binding}" ToolTip.Tip="Forget server"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Fingerprint verification overlay -->
+        <Border Background="#A0000000" IsVisible="{Binding ShowFingerprintPrompt}">
+            <Border Classes="card" MaxWidth="460" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Padding="22">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="Verify server fingerprint" Classes="h3"/>
+                    <TextBlock Text="{Binding FingerprintPromptMessage}" Classes="caption" TextWrapping="Wrap"/>
+                    <SelectableTextBlock Text="{Binding PendingFingerprint}" FontFamily="monospace" FontSize="11"
+                                         TextWrapping="Wrap" Foreground="{StaticResource CatppuccinTeal}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                        <Button Classes="ghost" Content="Cancel" Command="{Binding RejectFingerprintCommand}"/>
+                        <Button Classes="accent" Command="{Binding AcceptFingerprintCommand}">
+                            <TextBlock Text="Accept and connect"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Panel>
+</UserControl>

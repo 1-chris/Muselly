@@ -1,0 +1,176 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="720"
+             x:Class="Muselly.App.Views.MainView"
+             x:DataType="vm:MainViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.nav ListBoxItem:selected Path">
+            <Setter Property="Fill" Value="{StaticResource CatppuccinMauve}"/>
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:selected TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource CatppuccinText}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="*,Auto" Background="{StaticResource CatppuccinBase}">
+
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+
+            <!-- Navigation rail -->
+            <Border Grid.Column="0" Width="92" Background="{StaticResource CatppuccinMantle}"
+                    BorderBrush="{StaticResource CatppuccinCrust}" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*">
+                    <StackPanel Grid.Row="0" Margin="0,18,0,10" HorizontalAlignment="Center" Spacing="4">
+                        <Border Width="40" Height="40" CornerRadius="12"
+                                Background="{StaticResource CatppuccinMauve}">
+                            <Viewbox Width="22" Height="22" Stretch="Uniform"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Canvas Width="24" Height="24">
+                                    <Path Data="{StaticResource IconMusicNote}"
+                                          Fill="{StaticResource CatppuccinCrust}"/>
+                                </Canvas>
+                            </Viewbox>
+                        </Border>
+                        <TextBlock Text="Muselly" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource CatppuccinSubtext0}"/>
+                    </StackPanel>
+
+                    <ListBox Grid.Row="1" Classes="nav" SelectedIndex="{Binding SelectedNavIndex}"
+                             VerticalAlignment="Top">
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconAlbum}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Albums" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconArtist}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Artists" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconSongs}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Songs" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconFolder}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Folders" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconPlaylist}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Playlists" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconConnect}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Connect" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconSettings}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Settings" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Main content with a back/forward history bar (+ library search) -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="16,12,16,0">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <controls:IconButton Classes="flat" Icon="{StaticResource IconChevronRight}"
+                                             RenderTransform="rotate(180deg)"
+                                             Command="{Binding GoBackCommand}" IsEnabled="{Binding CanGoBack}"
+                                             ToolTip.Tip="Back"/>
+                        <controls:IconButton Classes="flat" Icon="{StaticResource IconChevronRight}"
+                                             Command="{Binding GoForwardCommand}" IsEnabled="{Binding CanGoForward}"
+                                             ToolTip.Tip="Forward"/>
+                    </StackPanel>
+
+                    <Border Grid.Column="2" Classes="surface" Width="240" VerticalAlignment="Center"
+                            IsVisible="{Binding IsLibraryActive}">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Path Grid.Column="0" Data="{StaticResource IconSearch}" Width="16" Height="16"
+                                  Stretch="Uniform" Margin="12,0,0,0"
+                                  Fill="{StaticResource CatppuccinSubtext0}" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Classes="search" Background="Transparent" PlaceholderText="Search…"
+                                     Text="{Binding Library.SearchText}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+                <ContentControl Grid.Row="1" Content="{Binding CurrentContent}"/>
+            </Grid>
+
+            <!-- Queue drawer -->
+            <Border Grid.Column="2" Width="340" Background="{StaticResource CatppuccinMantle}"
+                    BorderBrush="{StaticResource CatppuccinCrust}" BorderThickness="1,0,0,0"
+                    IsVisible="{Binding IsQueueOpen}">
+                <Grid RowDefinitions="Auto,*" Margin="14,16">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="Queue" Classes="h2"/>
+                            <TextBlock Classes="caption"
+                                       Text="{Binding Queue.Count, StringFormat='{}{0} tracks'}"/>
+                        </StackPanel>
+                        <controls:IconButton Grid.Column="1" Classes="small" Icon="{StaticResource IconDelete}"
+                                             Command="{Binding Queue.ClearCommand}" ToolTip.Tip="Clear queue"/>
+                        <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconClose}"
+                                             Command="{Binding CloseQueueCommand}" ToolTip.Tip="Close"/>
+                    </Grid>
+                    <ContentControl Grid.Row="1" Content="{Binding Queue}"/>
+                </Grid>
+            </Border>
+
+            <!-- Lyrics drawer (shares the right-hand space with the queue) -->
+            <Border Grid.Column="2" Width="340" Background="{StaticResource CatppuccinMantle}"
+                    BorderBrush="{StaticResource CatppuccinCrust}" BorderThickness="1,0,0,0"
+                    IsVisible="{Binding IsLyricsOpen}">
+                <Grid RowDefinitions="Auto,*" Margin="14,16">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="Lyrics" Classes="h2"/>
+                            <TextBlock Classes="caption" Text="{Binding Lyrics.SourceText}"
+                                       IsVisible="{Binding Lyrics.HasLyrics}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
+                                    Margin="0,0,6,0" IsVisible="{Binding Lyrics.HasLyrics}">
+                            <controls:IconButton Classes="small" Icon="{StaticResource IconMinus}" IconSize="16"
+                                                 Command="{Binding Lyrics.DecreaseFontCommand}"
+                                                 IsEnabled="{Binding Lyrics.CanDecreaseFont}" ToolTip.Tip="Smaller text"/>
+                            <controls:IconButton Classes="small" Icon="{StaticResource IconPlus}" IconSize="16"
+                                                 Command="{Binding Lyrics.IncreaseFontCommand}"
+                                                 IsEnabled="{Binding Lyrics.CanIncreaseFont}" ToolTip.Tip="Larger text"/>
+                        </StackPanel>
+                        <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconClose}"
+                                             Command="{Binding CloseLyricsCommand}" ToolTip.Tip="Close"/>
+                    </Grid>
+                    <ContentControl Grid.Row="1" Content="{Binding Lyrics}"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Always-visible player bar -->
+        <ContentControl Grid.Row="1" Content="{Binding Player}"/>
+    </Grid>
+</UserControl>

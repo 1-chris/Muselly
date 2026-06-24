@@ -1,0 +1,91 @@
+<views:ChromedWindow xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Muselly.App.ViewModels"
+        xmlns:content="using:Muselly.App.Views"
+        xmlns:views="using:Muselly.App.Views.Windows"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+        x:Class="Muselly.App.Views.Windows.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="1100" Height="700"
+        MinWidth="640" MinHeight="420"
+        TransparencyLevelHint="Blur, AcrylicBlur, Transparent"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        Title="{Binding Title}">
+
+    <Panel>
+    <Border Name="RootBorder" Background="{StaticResource CatppuccinBase}"
+            BorderBrush="{StaticResource CatppuccinCrust}" BorderThickness="1"
+            CornerRadius="8" ClipToBounds="True">
+    <Grid RowDefinitions="Auto, *">
+
+        <!-- Custom Title Bar -->
+        <Grid Grid.Row="0" Name="TitleBar" Classes="TitleBar" ColumnDefinitions="Auto, *, Auto"
+              PointerPressed="TitleBar_PointerPressed">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- macOS "traffic light" buttons live on the left; hidden on other platforms (toggled in
+                     code-behind). macOS left-to-right order: close (red) / minimise (yellow) / maximise (green). -->
+                <StackPanel Name="MacWindowButtons" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" Margin="14,0,8,0" IsVisible="False">
+                    <Button Classes="MacButton" Background="{StaticResource CatppuccinRed}"
+                            Click="CloseButton_Click" ToolTip.Tip="Close">
+                        <Path Data="M0,0 L7,7 M7,0 L0,7" Stroke="#80000000" StrokeThickness="1.2" Opacity="0"
+                              VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button Classes="MacButton" Background="{StaticResource CatppuccinYellow}"
+                            Click="MinimizeButton_Click" ToolTip.Tip="Minimize">
+                        <Path Data="M0,3 L7,3" Stroke="#80000000" StrokeThickness="1.2" Opacity="0"
+                              VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button Classes="MacButton" Background="{StaticResource CatppuccinGreen}"
+                            Click="MaximizeButton_Click" ToolTip.Tip="Maximize">
+                        <Path Data="M0,3 L7,3 M3.5,0 L3.5,7" Stroke="#80000000" StrokeThickness="1.2" Opacity="0"
+                              VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0" Spacing="10">
+                    <TextBlock Text="Muselly" FontSize="12" Foreground="{StaticResource CatppuccinMauve}"
+                               FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Version}" FontSize="10" Foreground="{StaticResource CatppuccinOverlay1}"
+                               VerticalAlignment="Center" Margin="-4,1,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Name="StandardWindowButtons" Grid.Column="2" Orientation="Horizontal">
+                <Button Name="MinimizeButton" Classes="TitleBarButton" Click="MinimizeButton_Click">
+                    <Path Margin="0,5,0,0" VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M0,0 L10,0" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"/>
+                </Button>
+                <Button Name="MaximizeButton" Classes="TitleBarButton" Click="MaximizeButton_Click">
+                    <Path VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M0,0 L10,0 L10,10 L0,10 Z" Stroke="{Binding $parent[Button].Foreground}"
+                          StrokeThickness="1" Fill="Transparent"/>
+                </Button>
+                <Button Name="CloseButton" Classes="TitleBarButton Close" Click="CloseButton_Click">
+                    <Path VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M0,0 L10,10 M10,0 L0,10" Stroke="{Binding $parent[Button].Foreground}"
+                          StrokeThickness="1"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Shared application content -->
+        <content:MainView Grid.Row="1"/>
+    </Grid>
+    </Border>
+
+    <!-- Resize Handles (custom; hidden on macOS where the native frame resizes the window) -->
+    <Grid Name="ResizeHandles" IsHitTestVisible="True">
+        <Border Width="4" HorizontalAlignment="Left" Cursor="LeftSide" PointerPressed="OnResizeHandlePressed" Tag="Left" Background="Transparent"/>
+        <Border Width="4" HorizontalAlignment="Right" Cursor="RightSide" PointerPressed="OnResizeHandlePressed" Tag="Right" Background="Transparent"/>
+        <Border Height="4" VerticalAlignment="Top" Cursor="TopSide" PointerPressed="OnResizeHandlePressed" Tag="Top" Background="Transparent"/>
+        <Border Height="4" VerticalAlignment="Bottom" Cursor="BottomSide" PointerPressed="OnResizeHandlePressed" Tag="Bottom" Background="Transparent"/>
+        <Border Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="TopLeftCorner" PointerPressed="OnResizeHandlePressed" Tag="TopLeft" Background="Transparent"/>
+        <Border Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="TopRightCorner" PointerPressed="OnResizeHandlePressed" Tag="TopRight" Background="Transparent"/>
+        <Border Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="BottomLeftCorner" PointerPressed="OnResizeHandlePressed" Tag="BottomLeft" Background="Transparent"/>
+        <Border Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner" PointerPressed="OnResizeHandlePressed" Tag="BottomRight" Background="Transparent"/>
+    </Grid>
+    </Panel>
+</views:ChromedWindow>
