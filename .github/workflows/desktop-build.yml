@@ -1,0 +1,125 @@
+name: Build & Release
+
+# Builds the distributable Muselly desktop packages — self-contained builds for every platform — and
+# (on a v* tag) publishes them all to a single GitHub Release.
+#
+#   * linux-x64           : built on an x86_64 Ubuntu runner.
+#   * linux-arm64         : built on an arm64 Ubuntu runner.
+#   * win-x64             : cross-published from the x86_64 Ubuntu runner (pure .NET, no native build).
+#   * osx-arm64 / osx-x64 : built on macOS runners (osx-x64 cross-published from the Apple Silicon runner).
+# Each job ends with dist/Muselly-<rid>.zip (produced by publish-desktop.sh) uploaded as an artifact.
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:        # allow manual runs from the Actions tab
+
+# Don't pile up redundant runs for the same ref; cancel the in-progress one when a new push lands.
+# (Tag runs get their own group so a release build is never cancelled by a later branch push.)
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write           # needed by the release job to create/upload a GitHub Release
+
+env:
+  DOTNET_VERSION: "10.0.x"
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false      # one platform failing shouldn't abandon the others
+      matrix:
+        include:
+          - { rid: linux-x64,   os: ubuntu-latest }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: win-x64,     os: ubuntu-latest }          # cross-published (pure .NET)
+          # Both macOS targets build on the Apple Silicon runner. osx-x64 is cross-published:
+          # `dotnet publish -r osx-x64` cross-publishes fine from an arm64 host.
+          - { rid: osx-arm64, os: macos-14 }
+          - { rid: osx-x64,   os: macos-14 }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # `zip` for packaging (publish-desktop.sh falls back to tar.gz if it's missing, but zip is the
+      # expected artifact). macOS runners ship zip already.
+      - name: Install zip (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends zip
+
+      # --- Bundle ffmpeg (built from source, LGPL, per RID) -------------------------------------------
+      - name: Install ffmpeg build deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends nasm pkg-config make xz-utils curl
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            sudo apt-get install -y --no-install-recommends \
+              gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64
+          fi
+
+      - name: Install ffmpeg build deps (macOS)
+        if: runner.os == 'macOS'
+        run: brew install nasm
+
+      - name: Cache bundled ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: third_party/ffmpeg/${{ matrix.rid }}
+          # Script hash includes the pinned FFmpeg version + configure flags, so bumps invalidate the cache.
+          key: ffmpeg-${{ matrix.rid }}-${{ hashFiles('scripts/build-ffmpeg.sh') }}
+
+      - name: Build bundled ffmpeg
+        run: |
+          chmod +x scripts/build-ffmpeg.sh
+          ./scripts/build-ffmpeg.sh "${{ matrix.rid }}"
+
+      - name: Publish
+        run: |
+          chmod +x publish-desktop.sh
+          ./publish-desktop.sh "${{ matrix.rid }}"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Muselly-${{ matrix.rid }}
+          path: |
+            dist/Muselly-${{ matrix.rid }}.zip
+            dist/Muselly-${{ matrix.rid }}.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  # Attach every desktop package to a single GitHub Release, but only when a v* tag is pushed.
+  release:
+    name: Publish Release
+    needs: [ build ]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts          # each artifact lands in artifacts/<name>/...
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2   # third-party action; pinned to a major tag
+        with:
+          files: |
+            artifacts/**/Muselly-*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
