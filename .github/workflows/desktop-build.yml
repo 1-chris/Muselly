@@ -73,9 +73,11 @@ jobs:
               gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 binutils-mingw-w64-x86-64
           fi
 
+      # pkg-config is preinstalled on GitHub's macOS images today, but install it explicitly so the build
+      # never silently produces an Opus-less ffmpeg if that ever changes (configure needs it to find libopus).
       - name: Install ffmpeg build deps (macOS)
         if: runner.os == 'macOS'
-        run: brew install nasm
+        run: brew install nasm pkg-config
 
       - name: Cache bundled ffmpeg
         uses: actions/cache@v4

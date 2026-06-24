@@ -21,8 +21,11 @@
 #   linux-x64 / linux-arm64 on Linux (native)
 #   win-x64               on Linux  (cross via mingw-w64) or on Windows (MSYS2, native)
 #
-# Build tools required: a C compiler + make + curl + tar(xz). x86 targets also need nasm/yasm (if absent,
-# the script falls back to --disable-x86asm so the build still succeeds, just without hand-tuned asm).
+# Build tools required: a C compiler + make + curl + tar(xz) + pkg-config. pkg-config is how ffmpeg's
+# configure locates the bundled libopus — without it --enable-libopus silently drops out and the binary
+# can't ENCODE Opus (the server's transcoder then fails with "Requested output format 'ogg' is not known").
+# x86 targets also need nasm/yasm (if absent, the script falls back to --disable-x86asm so the build still
+# succeeds, just without hand-tuned asm).
 
 set -euo pipefail
 
@@ -60,6 +63,26 @@ if [ -f "$DEST/$BIN_NAME" ] && [ -z "${FORCE:-}" ]; then
     echo "ffmpeg for $RID already present at $DEST/$BIN_NAME (set FORCE=1 to rebuild)."
     exit 0
 fi
+
+# --- preflight: required build tools ------------------------------------------------------------------
+# Fail loudly (with an install hint) rather than letting configure quietly produce an Opus-less binary.
+preflight_tools() {
+    local missing=()
+    command -v cc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || missing+=("a C compiler")
+    command -v make       >/dev/null 2>&1 || missing+=(make)
+    command -v curl       >/dev/null 2>&1 || missing+=(curl)
+    command -v pkg-config >/dev/null 2>&1 || missing+=(pkg-config)
+    [ "${#missing[@]}" -eq 0 ] && return 0
+
+    echo "ERROR: missing required build tool(s): ${missing[*]}" >&2
+    case "$HOST_OS" in
+        Darwin) echo "  Install on macOS:  brew install pkg-config nasm" >&2 ;;
+        Linux)  echo "  Install on Debian/Ubuntu:  sudo apt-get install -y build-essential nasm pkg-config make curl xz-utils" >&2 ;;
+        MINGW*|MSYS*) echo "  Install in MSYS2:  pacman -S --needed base-devel mingw-w64-x86_64-toolchain nasm pkgconf" >&2 ;;
+    esac
+    exit 1
+}
+preflight_tools
 
 WORK="$ROOT/build/ffmpeg"
 SRC="$WORK/ffmpeg-$FFMPEG_VERSION"

@@ -27,6 +27,35 @@ formats via the `ffmpeg` CLI) and plays them through native output drivers — *
 (macOS), **WASAPI** (Windows) and **ALSA** (Linux). No media framework to install. The browser demo uses a
 silent simulator.
 
+## Share your library — built-in server & client
+
+Any Muselly install can **host its library** for other Muselly clients, and connect to other people's
+servers — so your whole collection follows you between machines, or you share it with friends. It's all
+built in (`Muselly.Server`); there's no separate daemon to run.
+
+- **One-click server** — flip on the server in **Settings**. It picks a stable port, and you get a friendly
+  name plus a certificate **fingerprint** to share. Headless-friendly: the host is built purely on
+  `Muselly.Core` abstractions, so the same server can be reused without the UI.
+- **Encrypted & pinned** — every connection runs inside **TLS** using a self-signed certificate (1.3 where
+  both peers support it; macOS hosts negotiate TLS 1.2, since .NET's macOS TLS stack has no server-side 1.3
+  yet). Clients **pin the SHA-256 fingerprint on first use** (trust-on-first-use) and refuse to connect if it
+  ever changes — no certificate authority required.
+- **Accounts & roles** — per-user logins with **PBKDF2-hashed** passwords (cleartext never hits disk) and
+  three roles: **Guest**, **User** and **Admin**. Optional anonymous **guest access** can be toggled on.
+- **Reach beyond the LAN** — optional **UPnP / NAT-PMP** automatic router port-mapping makes the server
+  reachable from the internet (best-effort; never required).
+- **Remote libraries feel local** — add a server by host/port, connect (remembering credentials and
+  auto-reconnecting if you like), and its tracks **merge straight into your library** alongside local ones,
+  with full metadata, album art, artist images, biographies and lyrics fetched on demand and cached.
+- **On-the-fly Opus streaming** — the server transcodes tracks to **Opus** (libopus, configurable
+  **64–256 kbps**, default 128) as you listen, backed by a size-bounded on-disk **LRU transcode cache**.
+  Want the original? Full-quality **downloads** stream the source file untouched.
+- **Remote administration** — admins can add/remove music folders, trigger rescans, change server settings
+  and manage user accounts **over the wire**.
+
+Under the hood it speaks a small, length-prefixed **framed protocol** (UTF-8 JSON envelopes plus raw binary
+chunks for audio and images), spoken only inside the TLS tunnel.
+
 ### ffmpeg
 
 `.wav` plays with no external tools. For MP3/FLAC/ALAC/AAC/Opus, Muselly shells out to `ffmpeg`, which it
@@ -37,10 +66,15 @@ silent simulator.
 dotnet run --project Muselly.Desktop # the build copies the binary next to the app automatically
 ```
 
+- **Build prerequisites:** a C compiler, `make`, `curl`, `xz`/`tar` and **`pkg-config`** (the script needs
+  pkg-config to link libopus for Opus encoding — install it with `brew install pkg-config` on macOS or
+  `sudo apt-get install -y pkg-config` on Linux). x86 targets also want `nasm`. The script preflight-checks
+  these and tells you what's missing. See [`DEVELOPMENT.md`](DEVELOPMENT.md) for full per-platform steps.
 - The desktop project auto-copies `third_party/ffmpeg/<rid>/ffmpeg` to the output for the current RID, so
   `dotnet run` and per-RID `dotnet publish` both pick it up.
 - `publish-desktop.sh` builds the matching ffmpeg per RID; **CI builds + caches it on each native runner**.
 - If no bundled binary is present, Muselly falls back to an `ffmpeg` on the `PATH`.
+- The bundled ffmpeg both **decodes** (for playback) and **encodes Opus** (for the server's streaming).
 - Cross-building: `osx-x64` cross-compiles from Apple Silicon; `win-x64` cross-compiles from Linux via
   mingw-w64. Otherwise build each RID on its own OS.
 
@@ -61,6 +95,8 @@ invokes it as a separate process (no linking) — so Muselly stays MIT. The bina
 | Project | Role |
 |---|---|
 | `Muselly.Core` | Portable business logic (no UI dependency). |
+| `Muselly.Audio` | Dependency-free audio: ffmpeg-CLI decoding + native CoreAudio/WASAPI/ALSA output. |
+| `Muselly.Server` | Integrated library server **and** remote client (TLS, auth, Opus streaming). |
 | `Muselly.App` | Shared Avalonia UI library — windows, views, view models, theming, platform seam. |
 | `Muselly.Desktop` | Desktop head (Windows / Linux / macOS). |
 | `Muselly.Web` | Browser / WebAssembly head (Avalonia `browser-wasm`). |
@@ -75,6 +111,9 @@ platform "head" injects platform-specific services through the single
 ```bash
 dotnet build Muselly.sln
 ```
+
+For full, per-platform build instructions (toolchains, the bundled ffmpeg, cross-compiling and publishing),
+see [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 ### Run the desktop app
 
