@@ -5,12 +5,13 @@ using System.Security.Cryptography.X509Certificates;
 namespace Muselly.Server.Transport;
 
 /// <summary>
-/// Wraps raw TCP streams in TLS 1.3. The server presents its self-signed certificate; the client verifies it
+/// Wraps raw TCP streams in TLS (1.3 where available, 1.2 as a floor for macOS). The server presents its
+/// self-signed certificate; the client verifies it
 /// purely by fingerprint (no CA chain), so every byte after the handshake is encrypted and authenticated.
 /// </summary>
 public static class TlsTransport
 {
-    /// <summary>Completes the server-side TLS 1.3 handshake on an accepted connection.</summary>
+    /// <summary>Completes the server-side TLS handshake on an accepted connection.</summary>
     public static async Task<SslStream> AuthenticateServerAsync(Stream inner, X509Certificate2 certificate,
         CancellationToken ct = default)
     {
@@ -18,7 +19,9 @@ public static class TlsTransport
         var options = new SslServerAuthenticationOptions
         {
             ServerCertificate = certificate,
-            EnabledSslProtocols = SslProtocols.Tls13,
+            // macOS's SecureTransport backend does not support TLS 1.3, so allow 1.2 as a floor
+            // and let the handshake negotiate the highest version both peers support.
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             ClientCertificateRequired = false,
             CertificateRevocationCheckMode = X509RevocationMode.NoCheck
         };
@@ -27,7 +30,7 @@ public static class TlsTransport
     }
 
     /// <summary>
-    /// Completes the client-side TLS 1.3 handshake, capturing the server's fingerprint. When
+    /// Completes the client-side TLS handshake, capturing the server's fingerprint. When
     /// <paramref name="expectedFingerprint"/> is provided the handshake fails unless it matches (pinning);
     /// when null the certificate is accepted and its fingerprint reported via <paramref name="onFingerprint"/>.
     /// </summary>
@@ -46,7 +49,7 @@ public static class TlsTransport
         var options = new SslClientAuthenticationOptions
         {
             TargetHost = targetHost,
-            EnabledSslProtocols = SslProtocols.Tls13,
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             CertificateRevocationCheckMode = X509RevocationMode.NoCheck
         };
         await ssl.AuthenticateAsClientAsync(options, ct).ConfigureAwait(false);
