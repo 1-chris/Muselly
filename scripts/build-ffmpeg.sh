@@ -136,6 +136,11 @@ case "$RID" in
                 CROSS=(--arch=x86_64 --target-os=mingw32 --cross-prefix="$CROSS_PREFIX" --enable-cross-compile)
                 EXTRA_LDFLAGS="-static -static-libgcc"
                 have_asm || CROSS+=(--disable-x86asm)
+                # FFmpeg prepends the cross-prefix to pkg-config (looking for
+                # x86_64-w64-mingw32-pkg-config), which the mingw-w64 apt packages don't ship — it then
+                # silently falls back to a disabled pkg-config and can't find our cross-built libopus.
+                # Point it at the host pkg-config; PKG_CONFIG_PATH (set below) directs it to the right .pc.
+                CROSS+=(--pkg-config=pkg-config)
                 ;;
             MINGW*|MSYS*)
                 EXTRA_LDFLAGS="-static -static-libgcc"
