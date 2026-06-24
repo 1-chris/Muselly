@@ -23,7 +23,7 @@ A cross-platform music player built with **.NET 10** and **Avalonia 12**, themed
 
 Business logic lives in `Muselly.Core` (no UI dependency); the UI, custom controls and theming live in
 `Muselly.App`. Audio is **dependency-free**: `Muselly.Audio` decodes files to PCM (WAV natively; other
-formats via the `ffmpeg` CLI) and plays them through hand-written native output drivers — **CoreAudio**
+formats via the `ffmpeg` CLI) and plays them through native output drivers — **CoreAudio**
 (macOS), **WASAPI** (Windows) and **ALSA** (Linux). No media framework to install. The browser demo uses a
 silent simulator.
 
