@@ -82,7 +82,7 @@
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="12">
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Server name" Width="150"
                                        VerticalAlignment="Center" Classes="caption"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ServerName}" Watermark="This computer"
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ServerName}" PlaceholderText="This computer"
                                      HorizontalAlignment="Left" Width="280"/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Opus bitrate (kbps)" Width="150"
@@ -155,7 +155,7 @@
                                        Foreground="{StaticResource CatppuccinText}" FontWeight="SemiBold"/>
                             <TextBlock Classes="caption" TextWrapping="Wrap"
                                        Text="Public base URL used when building share links (e.g. a domain or reverse proxy). Leave blank to use this computer's address automatically."/>
-                            <TextBox Text="{Binding WebExternalUrl}" Watermark="https://music.example.com:1234/"/>
+                            <TextBox Text="{Binding WebExternalUrl}" PlaceholderText="https://music.example.com:1234/"/>
                         </StackPanel>
 
                         <Grid ColumnDefinitions="*,Auto">
@@ -216,7 +216,7 @@
                                            Foreground="{StaticResource CatppuccinText}"/>
                                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                                     <TextBox Grid.Column="0" Text="{Binding NewFirewallRule}"
-                                             Watermark="1.1.1.1  •  1.1.1.1/16  •  1.1.0.0-1.1.255.255"/>
+                                             PlaceholderText="1.1.1.1  •  1.1.1.1/16  •  1.1.0.0-1.1.255.255"/>
                                     <ComboBox Grid.Column="1" ItemsSource="{Binding FirewallScopeOptions}"
                                               SelectedItem="{Binding NewFirewallScope}" Width="110"/>
                                     <Button Grid.Column="2" Classes="accent" Command="{Binding AddFirewallRuleCommand}">
@@ -357,8 +357,8 @@
                                 <TextBlock Text="Add user" FontWeight="SemiBold" FontSize="12"
                                            Foreground="{StaticResource CatppuccinText}"/>
                                 <Grid ColumnDefinitions="*,*,Auto,Auto" ColumnSpacing="10">
-                                    <TextBox Grid.Column="0" Text="{Binding NewUsername}" Watermark="Username"/>
-                                    <TextBox Grid.Column="1" Text="{Binding NewPassword}" Watermark="Password" PasswordChar="•"/>
+                                    <TextBox Grid.Column="0" Text="{Binding NewUsername}" PlaceholderText="Username"/>
+                                    <TextBox Grid.Column="1" Text="{Binding NewPassword}" PlaceholderText="Password" PasswordChar="•"/>
                                     <ComboBox Grid.Column="2" ItemsSource="{Binding RoleOptions}"
                                               SelectedItem="{Binding NewUserRole}" Width="110"/>
                                     <Button Grid.Column="3" Classes="accent" Command="{Binding AddUserCommand}">
@@ -379,13 +379,13 @@
                         </StackPanel>
 
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                            <TextBox Grid.Column="0" Text="{Binding AddHost}" Watermark="Host or IP address"/>
-                            <TextBox Grid.Column="1" Text="{Binding AddPort}" Watermark="Port" Width="100"/>
+                            <TextBox Grid.Column="0" Text="{Binding AddHost}" PlaceholderText="Host or IP address"/>
+                            <TextBox Grid.Column="1" Text="{Binding AddPort}" PlaceholderText="Port" Width="100"/>
                         </Grid>
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                            <TextBox Grid.Column="0" Text="{Binding AddUsername}" Watermark="Username"
+                            <TextBox Grid.Column="0" Text="{Binding AddUsername}" PlaceholderText="Username"
                                      IsEnabled="{Binding !AddGuest}"/>
-                            <TextBox Grid.Column="1" Text="{Binding AddPassword}" Watermark="Password" PasswordChar="•"
+                            <TextBox Grid.Column="1" Text="{Binding AddPassword}" PlaceholderText="Password" PasswordChar="•"
                                      IsEnabled="{Binding !AddGuest}"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Spacing="20">

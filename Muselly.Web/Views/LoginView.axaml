@@ -15,8 +15,8 @@
                 </StackPanel>
 
                 <StackPanel Spacing="10">
-                    <TextBox Text="{Binding Username}" Watermark="Username"/>
-                    <TextBox Text="{Binding Password}" Watermark="Password" PasswordChar="•"/>
+                    <TextBox Text="{Binding Username}" PlaceholderText="Username"/>
+                    <TextBox Text="{Binding Password}" PlaceholderText="Password" PasswordChar="•"/>
                 </StackPanel>
 
                 <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"

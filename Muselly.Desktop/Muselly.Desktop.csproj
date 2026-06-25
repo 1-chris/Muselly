@@ -81,6 +81,14 @@
 
     <Target Name="BuildMusellyWebApp" Condition="'$(MusellyBundleWeb)' == 'true'" BeforeTargets="Build">
         <Message Importance="high" Text="Building Muselly.Web (browser-wasm) for bundling into the desktop app…" />
+        <!-- Muselly.Web isn't a ProjectReference (it has its own browser-wasm target), so the desktop
+             publish's implicit restore never touches it. Restore it explicitly first — as a separate MSBuild
+             invocation from the build, since a single Restore;Build call would build against stale evaluation
+             and re-trigger NETSDK1004. -->
+        <MSBuild Projects="$(MusellyWebProject)"
+                 Targets="Restore"
+                 Properties="Configuration=$(Configuration)"
+                 RemoveProperties="RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishProtocol;TargetFramework;Platform;PublishDir;RuntimeIdentifierOverride" />
         <MSBuild Projects="$(MusellyWebProject)"
                  Targets="Build"
                  Properties="Configuration=$(Configuration)"

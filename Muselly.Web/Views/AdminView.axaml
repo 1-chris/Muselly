@@ -40,7 +40,7 @@
                     <TextBlock Text="Add folder (path on the host)" FontWeight="SemiBold" FontSize="12"
                                Foreground="{StaticResource CatppuccinText}"/>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                        <TextBox Grid.Column="0" Text="{Binding NewFolderPath}" Watermark="/music/library"/>
+                        <TextBox Grid.Column="0" Text="{Binding NewFolderPath}" PlaceholderText="/music/library"/>
                         <Button Grid.Column="1" Classes="accent" Content="Add" Command="{Binding AddFolderCommand}"/>
                     </Grid>
                 </StackPanel>
