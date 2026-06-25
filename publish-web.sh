@@ -1,7 +1,15 @@
 #!/bin/bash
 #
-# Publishes the WebAssembly head (Muselly.Web) and stages the static bundle into dist/web/, ready to
-# serve from any static host (or open via a local server).
+# Publishes the WebAssembly browser client (Muselly.Web) and stages the static bundle into dist/web/.
+#
+# NOTE: The browser app is no longer a standalone static demo — it is a client of a Muselly web server
+# (the desktop app's web server or Muselly.Headless). Serve the staged bundle by pointing the host at it:
+#
+#   export MUSELLY_WEBROOT="$(pwd)/dist/web"
+#   dotnet run --project Muselly.Headless        # or enable the web server in the desktop app
+#
+# The host then serves these files AND the API the app talks to. A plain static host will NOT work, since
+# there is no backend to authenticate against, stream audio from, or read the library.
 #
 # Usage:
 #   ./publish-web.sh        # Release build of Muselly.Web into dist/web/
@@ -25,5 +33,5 @@ cp -r "$BUNDLE/." "$DEST/"
 
 echo ""
 echo "Web bundle staged in: $DEST"
-echo "Serve it with any static server, e.g.:"
-echo "  (cd dist/web && python3 -m http.server 8000)   # then open http://localhost:8000"
+echo "Serve it through a Muselly host, e.g.:"
+echo "  MUSELLY_WEBROOT=\"$DEST\" dotnet run --project Muselly.Headless"

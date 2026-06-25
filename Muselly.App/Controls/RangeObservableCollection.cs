@@ -23,4 +23,22 @@ public sealed class RangeObservableCollection<T> : ObservableCollection<T>
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
         OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
     }
+
+    /// <summary>Appends items, raising a single ranged Add notification (used for incremental "load more").</summary>
+    public void AddRange(IReadOnlyList<T> items)
+    {
+        if (items.Count == 0) return;
+
+        var start = Items.Count;
+        var added = new List<T>(items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            Items.Add(items[i]);
+            added.Add(items[i]);
+        }
+
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, added, start));
+    }
 }

@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Muselly.App.Services;
 using Muselly.App.ViewModels;
 
 namespace Muselly.App.Views;
@@ -18,6 +20,13 @@ public partial class MainView : UserControl
         // Space toggles play/pause from anywhere, except while typing in a text field. Handled on the
         // tunnel route so it fires before a focused button would treat Space as a click.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        // Make the clipboard available to view models (for "Copy share link").
+        AppClipboard.Current = TopLevel.GetTopLevel(this)?.Clipboard;
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)

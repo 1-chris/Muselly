@@ -4,18 +4,19 @@ using Muselly.Core.Models;
 
 namespace Muselly.Server.Auth;
 
-/// <summary>A logged-in session: the resolved username and the role it was granted.</summary>
-public sealed record Session(string Token, string Username, UserRole Role);
+/// <summary>A logged-in session: the resolved username, the role it was granted and an optional share scope
+/// (present only for share-link sessions, which may access just the shared item).</summary>
+public sealed record Session(string Token, string Username, UserRole Role, ShareScope? Scope = null);
 
 /// <summary>Issues and validates opaque session tokens for the lifetime of the server process.</summary>
 public sealed class SessionManager
 {
     private readonly ConcurrentDictionary<string, Session> _sessions = new();
 
-    public Session Create(string username, UserRole role)
+    public Session Create(string username, UserRole role, ShareScope? scope = null)
     {
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        var session = new Session(token, username, role);
+        var session = new Session(token, username, role, scope);
         _sessions[token] = session;
         return session;
     }

@@ -38,3 +38,12 @@ A NuGet library used by `Muselly.Server` to optionally open the server's port on
 
 - **Project:** Mono.Nat — https://github.com/alanmcgovern/Mono.Nat
 - **License:** MIT.
+
+## Noto Sans JP
+
+The browser head (`Muselly.Web`) embeds the **Noto Sans JP** font so Japanese (and other CJK) text renders in
+the WebAssembly sandbox, where the OS's fonts are not available to the renderer.
+
+- **Project:** Noto Sans CJK / Noto Sans JP — https://github.com/notofonts/noto-cjk
+- **License:** SIL Open Font License 1.1 (OFL-1.1).
+- The font file is redistributed unmodified at `Muselly.Web/Assets/Fonts/NotoSansJP-Regular.ttf`.

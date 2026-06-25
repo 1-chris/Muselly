@@ -30,4 +30,25 @@ public sealed class ServerSettings
 
     /// <summary>When true, attempt to open the port on the router via UPnP/NAT-PMP.</summary>
     public bool UpnpEnabled { get; set; }
+
+    /// <summary>Optional IP firewall applied to the built-in server and/or the web server.</summary>
+    public FirewallSettings Firewall { get; set; } = new();
+
+    /// <summary>Whether the HTTP/S web server (serving the browser app + API) should be started.</summary>
+    public bool WebEnabled { get; set; }
+
+    /// <summary>HTTP port for the web server. 0 disables plain HTTP.</summary>
+    public int WebHttpPort { get; set; } = 5180;
+
+    /// <summary>HTTPS port for the web server. 0 disables HTTPS.</summary>
+    public int WebHttpsPort { get; set; } = 5181;
+
+    /// <summary>When true, try to open the web server's HTTP/HTTPS ports on the router via UPnP/NAT-PMP.</summary>
+    public bool WebUpnpEnabled { get; set; }
+
+    /// <summary>
+    /// Optional public base URL for the web server (e.g. <c>https://music.example.com:1234/</c>). When set,
+    /// share links are built from it instead of the detected LAN IP + port. Empty = derive automatically.
+    /// </summary>
+    public string WebExternalUrl { get; set; } = string.Empty;
 }

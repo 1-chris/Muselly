@@ -55,6 +55,12 @@ public interface IRemoteServerManager
     /// <summary>Removes a saved server (disconnecting first) and its merged library content.</summary>
     Task ForgetAsync(string serverId);
 
+    /// <summary>
+    /// Sets whether a saved server should be reconnected automatically when the desktop app starts, and
+    /// persists the change. Raises <see cref="ServersChanged"/>.
+    /// </summary>
+    Task SetAutoConnectAsync(string serverId, bool autoConnect);
+
     /// <summary>Fetches a remote resource (album art / artist image) by its <c>muselly://</c> URI.</summary>
     Task<byte[]?> GetResourceAsync(string remoteUri, CancellationToken cancellationToken = default);
 

@@ -11,6 +11,7 @@ using Muselly.Audio.Decoding;
 using Muselly.Core.Services.Interfaces;
 using Muselly.Server.DependencyInjection;
 using Muselly.Server.Transcoding;
+using Muselly.WebHost.DependencyInjection;
 
 namespace Muselly.Desktop;
 
@@ -33,6 +34,9 @@ public sealed class DesktopPlatform : IPlatformServices
         // Integrated server + remote-client services. Registered after the core defaults so the remote-aware
         // audio source resolver replaces the local-only one (last registration wins).
         services.AddMusellyServer();
+
+        // HTTP/S web host (serves the browser app + API onto the same engine).
+        services.AddMusellyWebHost();
 
         services.AddSingleton<IPlaybackService>(sp =>
             new FfmpegPlaybackService(
@@ -84,6 +88,13 @@ public sealed class DesktopPlatform : IPlatformServices
             var host = services.GetRequiredService<IServerHost>();
             if (host.Settings.Enabled)
                 await host.StartAsync();
+
+            // Start the web server if it was left enabled.
+            if (host.Settings.WebEnabled)
+            {
+                try { await services.GetRequiredService<IWebServerHost>().StartAsync(); }
+                catch { /* optional; never block startup */ }
+            }
 
             var remotes = services.GetRequiredService<IRemoteServerManager>();
             foreach (var server in remotes.Servers)

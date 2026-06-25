@@ -96,10 +96,12 @@ invokes it as a separate process (no linking) — so Muselly stays MIT. The bina
 |---|---|
 | `Muselly.Core` | Portable business logic (no UI dependency). |
 | `Muselly.Audio` | Dependency-free audio: ffmpeg-CLI decoding + native CoreAudio/WASAPI/ALSA output. |
-| `Muselly.Server` | Integrated library server **and** remote client (TLS, auth, Opus streaming). |
+| `Muselly.Server` | Integrated library server **and** remote client (TLS, auth, Opus streaming). The transport-agnostic `ServerEngine` + `MusellyApiService` are reused by the web host and headless. |
+| `Muselly.WebHost` | ASP.NET Core host that serves the browser app **and** a JSON/streaming API onto the same engine (auth, roles, IP firewall, Opus). |
 | `Muselly.App` | Shared Avalonia UI library — windows, views, view models, theming, platform seam. |
 | `Muselly.Desktop` | Desktop head (Windows / Linux / macOS). |
-| `Muselly.Web` | Browser / WebAssembly head (Avalonia `browser-wasm`). |
+| `Muselly.Web` | Browser / WebAssembly head (Avalonia `browser-wasm`) — a real client of a Muselly web host. |
+| `Muselly.Headless` | UI-less host that runs the TLS server + web server (shares the engine; ideal for a NAS/box). |
 | `Muselly.Android` | Android head *(not yet scaffolded)*. |
 
 The shared `Muselly.App` library references only cross-platform Avalonia. Each
@@ -121,21 +123,33 @@ see [`DEVELOPMENT.md`](DEVELOPMENT.md).
 dotnet run --project Muselly.Desktop
 ```
 
-### Run the web app
+### The web app & headless host
 
-The web head is a **demo** (no native folder scanning or audio in the browser sandbox). It requires the
-`wasm-tools` workload:
+The browser app is **not** a static demo anymore — it's a real client of a Muselly **web server**. Enable the
+web server from the desktop app's **Connect** page (set the HTTP/HTTPS ports and flip it on), or run the
+**headless** host. The web server serves the published browser bundle *and* the API it talks to: it honours
+the same accounts/roles (guests browse if guest access is on; otherwise visitors sign in), streams audio as
+Opus, and lets admins manage the host's folders/rescans from the browser. The IP firewall (Connect page)
+applies to the built-in server, the web server, or both.
+
+Build the browser bundle (needs the `wasm-tools` workload), then point a host at it:
 
 ```bash
 dotnet workload install wasm-tools
-dotnet run --project Muselly.Web
+./publish-web.sh                                   # stages the bundle into dist/web/
+
+# Run the headless host, serving that bundle + API:
+MUSELLY_WEBROOT="$(pwd)/dist/web" dotnet run --project Muselly.Headless -- --add /path/to/music
 ```
+
+`Muselly.Headless` runs the same engine as the desktop with no UI: `--add <folder>` registers music folders,
+`--http`/`--https` set ports, and `--no-web` / `--no-server` disable either listener.
 
 ## Publishing
 
 ```bash
 ./publish-desktop.sh          # all desktop RIDs into dist/
-./publish-web.sh              # WASM bundle into dist/web/
+./publish-web.sh              # WASM browser-client bundle into dist/web/ (served by a Muselly host)
 ```
 
 ## Theming

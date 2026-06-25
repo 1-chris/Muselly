@@ -84,19 +84,13 @@
                                              CommandParameter="{Binding}"/>
                         <Grid.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Play"
-                                          Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                          CommandParameter="{Binding}">
+                                <MenuItem Header="Play" Tag="track.play" Click="OnTrackMenuClick">
                                     <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
                                 </MenuItem>
-                                <MenuItem Header="Play next"
-                                          Command="{Binding DataContext.PlayTrackNextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                          CommandParameter="{Binding}">
+                                <MenuItem Header="Play next" Tag="track.playnext" Click="OnTrackMenuClick">
                                     <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
                                 </MenuItem>
-                                <MenuItem Header="Add to queue"
-                                          Command="{Binding DataContext.AddTrackToQueueCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                          CommandParameter="{Binding}">
+                                <MenuItem Header="Add to queue" Tag="track.queue" Click="OnTrackMenuClick">
                                     <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
                                 </MenuItem>
                             </ContextMenu>

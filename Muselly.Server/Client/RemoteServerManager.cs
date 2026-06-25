@@ -166,6 +166,23 @@ public sealed class RemoteServerManager : IRemoteServerManager
         ServersChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public Task SetAutoConnectAsync(string serverId, bool autoConnect)
+    {
+        var changed = false;
+        lock (_gate)
+        {
+            var server = _servers.FirstOrDefault(s => s.Id == serverId);
+            if (server is not null && server.AutoConnect != autoConnect)
+            {
+                server.AutoConnect = autoConnect;
+                Save();
+                changed = true;
+            }
+        }
+        if (changed) ServersChanged?.Invoke(this, EventArgs.Empty);
+        return Task.CompletedTask;
+    }
+
     public async Task<byte[]?> GetResourceAsync(string remoteUri, CancellationToken cancellationToken = default)
     {
         if (!RemoteSource.TryParse(remoteUri, out var serverId, out var kind, out var key)) return null;

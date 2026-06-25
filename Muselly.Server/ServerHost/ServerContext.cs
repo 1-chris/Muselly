@@ -29,6 +29,9 @@ public sealed class ServerContext
     /// <summary>Optional artist-info resolver (for bios/images).</summary>
     public IArtistInfoService? ArtistInfo { get; init; }
 
+    /// <summary>Records a human-readable activity line (connections, requests, commands) for the server log.</summary>
+    public Action<string>? ActivityLog { get; init; }
+
     /// <summary>Triggers a library rescan (admin action).</summary>
     public required Func<CancellationToken, Task> Rescan { get; init; }
 

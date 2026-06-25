@@ -35,7 +35,7 @@
             </StackPanel>
 
             <!-- Albums grid -->
-            <ScrollViewer IsVisible="{Binding IsAlbumsTab}">
+            <ScrollViewer IsVisible="{Binding IsAlbumsTab}" ScrollChanged="OnAlbumsScrollChanged">
                 <ItemsControl ItemsSource="{Binding Albums}" controls:DragDropBehavior.DragSource="Library">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -61,27 +61,26 @@
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <Button.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Play"
-                                                  Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                    <ContextMenu Opening="OnLibraryMenuOpening">
+                                        <MenuItem Header="Play" Tag="album.play" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Play next"
-                                                  Command="{Binding DataContext.PlayNextAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Play next" Tag="album.playnext" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Play shuffled"
-                                                  Command="{Binding DataContext.PlayAlbumShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Play shuffled" Tag="album.shuffle" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffle}"/></MenuItem.Icon>
                                         </MenuItem>
                                         <Separator/>
-                                        <MenuItem Header="Add to queue"
-                                                  Command="{Binding DataContext.QueueAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Add to queue" Tag="album.queue" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Add to queue (shuffled)"
-                                                  Command="{Binding DataContext.QueueAlbumShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Add to queue (shuffled)" Tag="album.queueshuffle" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffleAdd}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator Tag="share-sep"/>
+                                        <MenuItem Header="Copy share link" Tag="album.share" Click="OnLibraryMenuClick">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconConnect}"/></MenuItem.Icon>
                                         </MenuItem>
                                     </ContextMenu>
                                 </Button.ContextMenu>
@@ -92,7 +91,7 @@
             </ScrollViewer>
 
             <!-- Artists grid -->
-            <ScrollViewer IsVisible="{Binding IsArtistsTab}">
+            <ScrollViewer IsVisible="{Binding IsArtistsTab}" ScrollChanged="OnArtistsScrollChanged">
                 <ItemsControl ItemsSource="{Binding Artists}" controls:DragDropBehavior.DragSource="Library">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -112,27 +111,26 @@
                                                Text="{Binding AlbumCount, StringFormat='{}{0} albums'}"/>
                                 </StackPanel>
                                 <Button.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Play"
-                                                  Command="{Binding DataContext.PlayArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                    <ContextMenu Opening="OnLibraryMenuOpening">
+                                        <MenuItem Header="Play" Tag="artist.play" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Play next"
-                                                  Command="{Binding DataContext.PlayNextArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Play next" Tag="artist.playnext" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Play shuffled"
-                                                  Command="{Binding DataContext.PlayArtistShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Play shuffled" Tag="artist.shuffle" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffle}"/></MenuItem.Icon>
                                         </MenuItem>
                                         <Separator/>
-                                        <MenuItem Header="Add to queue"
-                                                  Command="{Binding DataContext.QueueArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Add to queue" Tag="artist.queue" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Add to queue (shuffled)"
-                                                  Command="{Binding DataContext.QueueArtistShuffledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                        <MenuItem Header="Add to queue (shuffled)" Tag="artist.queueshuffle" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconShuffleAdd}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator Tag="share-sep"/>
+                                        <MenuItem Header="Copy share link" Tag="artist.share" Click="OnLibraryMenuClick">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconConnect}"/></MenuItem.Icon>
                                         </MenuItem>
                                     </ContextMenu>
                                 </Button.ContextMenu>
@@ -194,21 +192,19 @@
                                                      Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                      CommandParameter="{Binding}"/>
                                 <Grid.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Play"
-                                                  Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                  CommandParameter="{Binding}">
+                                    <ContextMenu Opening="OnLibraryMenuOpening">
+                                        <MenuItem Header="Play" Tag="song.play" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Play next"
-                                                  Command="{Binding DataContext.QueueSongNextCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                  CommandParameter="{Binding}">
+                                        <MenuItem Header="Play next" Tag="song.playnext" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="Add to queue"
-                                                  Command="{Binding DataContext.QueueSongCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                  CommandParameter="{Binding}">
+                                        <MenuItem Header="Add to queue" Tag="song.queue" Click="OnLibraryMenuClick">
                                             <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator Tag="share-sep"/>
+                                        <MenuItem Header="Copy share link" Tag="song.share" Click="OnLibraryMenuClick">
+                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconConnect}"/></MenuItem.Icon>
                                         </MenuItem>
                                     </ContextMenu>
                                 </Grid.ContextMenu>
@@ -276,6 +272,13 @@
                     </ListBox>
                 </Grid>
             </Grid>
+
+            <!-- Transient share-link confirmation -->
+            <Border Background="{StaticResource CatppuccinSurface1}" CornerRadius="10" Padding="14,10"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
+                    IsVisible="{Binding HasShareStatus}">
+                <TextBlock Text="{Binding ShareStatus}" Foreground="{StaticResource CatppuccinText}"/>
+            </Border>
 
         </Panel>
     </Grid>

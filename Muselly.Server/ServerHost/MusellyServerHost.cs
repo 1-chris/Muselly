@@ -4,75 +4,53 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Muselly.Core.Models;
 using Muselly.Core.Services.Interfaces;
-using Muselly.Core.Services.Web;
-using Muselly.Core.Storage;
-using Muselly.Server.Auth;
+using Muselly.Core.Util;
 using Muselly.Server.Discovery;
-using Muselly.Server.Transcoding;
 using Muselly.Server.Transport;
 
 namespace Muselly.Server.ServerHost;
 
 /// <summary>
-/// The integrated server. Listens on a stable TCP port, wraps every connection in TLS 1.3 with the
-/// self-signed certificate, and hands each off to a <see cref="ServerSession"/>. Reads its config from
-/// <c>server.json</c> and is built purely from Core abstractions so a headless host can reuse it verbatim.
+/// The integrated TLS server. Listens on a stable TCP port, applies the IP firewall, wraps every accepted
+/// connection in TLS with the self-signed certificate, and hands each off to a <see cref="ServerSession"/>.
+/// All shared state and operations live in the transport-agnostic <see cref="ServerEngine"/>; this type is
+/// just the framed-protocol transport in front of it.
 /// </summary>
 public sealed class MusellyServerHost : IServerHost
 {
-    private readonly ILibraryService _library;
-    private readonly ISettingsService _settings;
-    private readonly ILoggerFactory _loggerFactory;
+    private readonly ServerEngine _engine;
     private readonly ILogger<MusellyServerHost> _logger;
-    private readonly ILyricsService? _lyrics;
-    private readonly IArtistInfoService? _artistInfo;
-
-    private readonly UserStore _users;
-    private readonly SessionManager _sessions = new();
-    private readonly OpusTranscoder _transcoder = new();
-    private readonly TranscodeCache _transcodeCache;
     private readonly PortMapper _portMapper;
     private readonly object _gate = new();
 
-    private ServerSettings _config;
     private X509Certificate2? _certificate;
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
     private int _clientCount;
-    private string _libraryEtag = Guid.NewGuid().ToString("N");
 
-    public MusellyServerHost(
-        ILibraryService library,
-        ISettingsService settings,
-        ILoggerFactory loggerFactory,
-        ILyricsService? lyrics = null,
-        IArtistInfoService? artistInfo = null)
+    public MusellyServerHost(ServerEngine engine, ILoggerFactory loggerFactory)
     {
-        _library = library;
-        _settings = settings;
-        _loggerFactory = loggerFactory;
+        _engine = engine;
         _logger = loggerFactory.CreateLogger<MusellyServerHost>();
-        _lyrics = lyrics;
-        _artistInfo = artistInfo;
-
-        _config = JsonStore.Load(StoragePaths.ServerConfigFile(), () => new ServerSettings());
-        _users = new UserStore();
-        _transcodeCache = new TranscodeCache(StoragePaths.TranscodeCacheDirectory(), _transcoder,
-            loggerFactory.CreateLogger<TranscodeCache>());
-        _transcodeCache.MaxBytes = _config.TranscodeCacheMaxBytes;
         _portMapper = new PortMapper(loggerFactory.CreateLogger<PortMapper>());
 
-        _library.LibraryChanged += (_, _) => _libraryEtag = Guid.NewGuid().ToString("N");
+        _engine.SettingsChanged += (_, _) => RaiseStateChanged();
     }
 
     public bool IsRunning { get; private set; }
-    public int Port => IsRunning ? _config.Port : 0;
+    public int Port => IsRunning ? _engine.Config.Port : 0;
     public string Fingerprint { get; private set; } = string.Empty;
     public int ConnectedClients => Volatile.Read(ref _clientCount);
-    public ServerSettings Settings => _config;
-    public IServerUserStore Users => _users;
+    public ServerSettings Settings => _engine.Config;
+    public IServerUserStore Users => _engine.Users;
+    public IReadOnlyList<ServerLogEntry> RecentLogs => _engine.RecentLogs;
 
     public event EventHandler? StateChanged;
+    public event EventHandler<ServerLogEntry>? Logged
+    {
+        add => _engine.Logged += value;
+        remove => _engine.Logged -= value;
+    }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -81,24 +59,23 @@ public sealed class MusellyServerHost : IServerHost
             if (IsRunning) return;
         }
 
-        _certificate = CertificateManager.LoadOrCreate(StoragePaths.ServerCertificateFile());
+        var config = _engine.Config;
+        _certificate = CertificateManager.LoadOrCreate(Core.Storage.StoragePaths.ServerCertificateFile());
         Fingerprint = Transport.Fingerprint.Of(_certificate);
 
         // Stable port: keep the configured one, else choose a free port now and persist it.
-        if (_config.Port == 0)
-            _config.Port = FindFreePort();
-        if (_config.CertificateFingerprint != Fingerprint)
-            _config.CertificateFingerprint = Fingerprint;
-        Persist();
+        if (config.Port == 0) config.Port = FindFreePort();
+        if (config.CertificateFingerprint != Fingerprint) config.CertificateFingerprint = Fingerprint;
+        _engine.Persist();
 
-        var listener = new TcpListener(IPAddress.Any, _config.Port);
+        var listener = new TcpListener(IPAddress.Any, config.Port);
         try
         {
             listener.Start();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start server listener on port {Port}.", _config.Port);
+            _logger.LogError(ex, "Failed to start server listener on port {Port}.", config.Port);
             throw;
         }
 
@@ -106,10 +83,9 @@ public sealed class MusellyServerHost : IServerHost
         _listener = listener;
         IsRunning = true;
 
-        if (_config.UpnpEnabled)
-            _portMapper.Start(_config.Port);
+        if (config.UpnpEnabled) _portMapper.Start(config.Port);
 
-        _logger.LogInformation("Muselly server listening on port {Port} (fingerprint {Fp}).", _config.Port, Fingerprint);
+        _logger.LogInformation("Muselly server listening on port {Port} (fingerprint {Fp}).", config.Port, Fingerprint);
         RaiseStateChanged();
 
         _ = Task.Run(() => AcceptLoopAsync(_cts.Token));
@@ -141,14 +117,26 @@ public sealed class MusellyServerHost : IServerHost
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
     {
+        var remoteAddress = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+        var remote = remoteAddress?.ToString() ?? "unknown";
+
+        // Firewall: silently drop connections the policy refuses (don't even complete the TLS handshake).
+        if (!IpFilter.IsAllowed(remoteAddress, _engine.Config.Firewall, FirewallScope.Server))
+        {
+            try { client.Dispose(); } catch { /* ignore */ }
+            _engine.Log($"Firewall blocked connection ({remote})");
+            return;
+        }
+
         Interlocked.Increment(ref _clientCount);
         RaiseStateChanged();
+        _engine.Log($"Client connected ({remote})");
         try
         {
             client.NoDelay = true;
             var ssl = await TlsTransport.AuthenticateServerAsync(client.GetStream(), _certificate!, ct)
                 .ConfigureAwait(false);
-            var session = new ServerSession(ssl, BuildContext(), ct);
+            var session = new ServerSession(ssl, _engine.BuildContext(), ct);
             await session.RunAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -160,31 +148,9 @@ public sealed class MusellyServerHost : IServerHost
             try { client.Dispose(); } catch { /* ignore */ }
             Interlocked.Decrement(ref _clientCount);
             RaiseStateChanged();
+            _engine.Log($"Client disconnected ({remote})");
         }
     }
-
-    private ServerContext BuildContext() => new()
-    {
-        Logger = _logger,
-        Library = _library,
-        Settings = _settings,
-        Users = _users,
-        Sessions = _sessions,
-        TranscodeCache = _transcodeCache,
-        ServerSettings = () => _config,
-        LibraryEtag = () => _libraryEtag,
-        Lyrics = _lyrics,
-        ArtistInfo = _artistInfo,
-        Rescan = ct => _library.ScanAsync(ct),
-        UpdateSettings = async mutate =>
-        {
-            mutate();
-            _transcodeCache.MaxBytes = _config.TranscodeCacheMaxBytes;
-            Persist();
-            RaiseStateChanged();
-            await Task.CompletedTask;
-        }
-    };
 
     public async Task StopAsync()
     {
@@ -205,31 +171,27 @@ public sealed class MusellyServerHost : IServerHost
 
     public async Task UpdateSettingsAsync(Action<ServerSettings> mutate)
     {
+        var config = _engine.Config;
         var wasRunning = IsRunning;
-        var oldPort = _config.Port;
-        var oldUpnp = _config.UpnpEnabled;
+        var oldPort = config.Port;
+        var oldUpnp = config.UpnpEnabled;
 
-        mutate(_config);
-        _config.OpusBitrateKbps = OpusTranscoder.ClampBitrate(_config.OpusBitrateKbps);
-        _transcodeCache.MaxBytes = _config.TranscodeCacheMaxBytes;
-        Persist();
+        _engine.UpdateConfig(mutate);
 
         // A port change requires a listener restart; a UPnP toggle just (un)maps.
-        if (wasRunning && _config.Port != oldPort)
+        if (wasRunning && config.Port != oldPort)
         {
             await StopAsync();
             await StartAsync();
         }
-        else if (wasRunning && _config.UpnpEnabled != oldUpnp)
+        else if (wasRunning && config.UpnpEnabled != oldUpnp)
         {
-            if (_config.UpnpEnabled) _portMapper.Start(_config.Port);
+            if (config.UpnpEnabled) _portMapper.Start(config.Port);
             else _portMapper.Stop();
         }
 
         RaiseStateChanged();
     }
-
-    private void Persist() => JsonStore.Save(StoragePaths.ServerConfigFile(), _config);
 
     private void RaiseStateChanged() => StateChanged?.Invoke(this, EventArgs.Empty);
 

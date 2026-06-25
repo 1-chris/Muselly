@@ -26,8 +26,14 @@ public interface IServerHost
 
     IServerUserStore Users { get; }
 
+    /// <summary>A snapshot of the most recent server activity (connections, requests, commands).</summary>
+    IReadOnlyList<ServerLogEntry> RecentLogs { get; }
+
     /// <summary>Raised when running state, client count or settings change.</summary>
     event EventHandler? StateChanged;
+
+    /// <summary>Raised (possibly off the UI thread) whenever a new activity log entry is recorded.</summary>
+    event EventHandler<ServerLogEntry>? Logged;
 
     Task StartAsync(CancellationToken cancellationToken = default);
 

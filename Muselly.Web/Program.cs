@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Browser;
+using Avalonia.Media;
+using Avalonia.Media.Fonts;
 
 [assembly: System.Runtime.Versioning.SupportedOSPlatform("browser")]
 
@@ -23,5 +25,16 @@ internal sealed partial class Program
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<SharedApp>()
-            .WithInterFont();
+            .WithInterFont()
+            // The browser backend renders text with embedded fonts only (no OS fonts), so make Inter the
+            // default and add a Japanese-capable fallback so CJK glyphs render instead of tofu boxes.
+            .With(new FontManagerOptions
+            {
+                DefaultFamilyName = "avares://Avalonia.Fonts.Inter/Assets#Inter",
+                FontFallbacks = new[]
+                {
+                    new FontFallback { FontFamily = new FontFamily("avares://Avalonia.Fonts.Inter/Assets#Inter") },
+                    new FontFallback { FontFamily = new FontFamily("avares://Muselly.Web/Assets/Fonts/NotoSansJP-Regular.ttf#Noto Sans JP") }
+                }
+            });
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Muselly.Core.Services.Interfaces;
+using Muselly.Server.Api;
 using Muselly.Server.Client;
 using Muselly.Server.ServerHost;
 
@@ -13,8 +14,13 @@ public static class ServerServiceCollectionExtensions
 {
     public static IServiceCollection AddMusellyServer(this IServiceCollection services)
     {
+        // The transport-agnostic engine: shared by the TLS host and the HTTP web host.
+        services.AddSingleton<IShareService, Auth.ShareService>();
+        services.AddSingleton<ServerEngine>();
+        services.AddSingleton<MusellyApiService>();
+
         services.AddSingleton<IServerHost, MusellyServerHost>();
-        services.AddSingleton<IServerUserStore>(sp => ((MusellyServerHost)sp.GetRequiredService<IServerHost>()).Users);
+        services.AddSingleton<IServerUserStore>(sp => sp.GetRequiredService<ServerEngine>().Users);
         services.AddSingleton<IRemoteServerManager, RemoteServerManager>();
 
         // Override the local-only resolver so playback can stream remote tracks.

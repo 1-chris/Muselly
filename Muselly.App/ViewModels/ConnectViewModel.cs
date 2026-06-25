@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Muselly.Core.Models;
 using Muselly.Core.Services.Interfaces;
+using Muselly.Core.Util;
 using WebHttp = Muselly.Core.Services.Web.WebClient;
 
 namespace Muselly.App.ViewModels;
@@ -22,16 +23,37 @@ public sealed partial class ConnectViewModel : ViewModelBase
 {
     private readonly IServerHost _host;
     private readonly IRemoteServerManager _remotes;
+    private readonly IWebServerHost _webHost;
+    private readonly Muselly.App.Services.IClientContext _clientContext;
+    private readonly IShareService _shares;
+    private readonly ILibraryService _library;
+    private readonly IPlaylistService _playlists;
 
-    public ConnectViewModel(IServerHost host, IRemoteServerManager remotes)
+    public ConnectViewModel(IServerHost host, IRemoteServerManager remotes, IWebServerHost webHost,
+        Muselly.App.Services.IClientContext clientContext, IShareService shares, ILibraryService library,
+        IPlaylistService playlists)
     {
         _host = host;
         _remotes = remotes;
+        _webHost = webHost;
+        _clientContext = clientContext;
+        _shares = shares;
+        _library = library;
+        _playlists = playlists;
 
         _host.StateChanged += (_, _) => OnUi(RefreshServerState);
+        _host.Logged += (_, entry) => OnUi(() => AppendLog(entry));
         _remotes.ServersChanged += (_, _) => OnUi(RefreshRemotes);
+        _webHost.StateChanged += (_, _) => OnUi(RefreshWebState);
+
+        foreach (var entry in _host.RecentLogs) AppendLog(entry);
 
         var s = _host.Settings;
+        _webEnabled = s.WebEnabled;
+        _webHttpPort = s.WebHttpPort;
+        _webHttpsPort = s.WebHttpsPort;
+        _webUpnpEnabled = s.WebUpnpEnabled;
+        _webExternalUrl = s.WebExternalUrl;
         _serverEnabled = s.Enabled;
         _serverName = s.ServerName;
         _selectedBitrate = s.OpusBitrateKbps is >= 64 and <= 256 ? s.OpusBitrateKbps : 128;
@@ -44,13 +66,25 @@ public sealed partial class ConnectViewModel : ViewModelBase
         RefreshServerState();
         RefreshUsers();
         RefreshRemotes();
+        RefreshFirewall();
+        RefreshWebState();
+        ReloadShareTargets();
+        RefreshShares();
     }
+
+    /// <summary>True when the host's server/web/firewall/user settings can be managed from this client.</summary>
+    public bool CanManageHost => _clientContext.CanManageHost;
 
     // --- Built-in server -----------------------------------------------------------------------------
 
-    [ObservableProperty] private bool _serverEnabled;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowServerLogs))]
+    private bool _serverEnabled;
     [ObservableProperty] private bool _isRunning;
     [ObservableProperty] private string _statusText = "Server off";
+
+    /// <summary>The activity log is relevant whenever either the TLS server or the web server is enabled.</summary>
+    public bool ShowServerLogs => ServerEnabled || WebEnabled;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShareText))]
@@ -224,6 +258,29 @@ public sealed partial class ConnectViewModel : ViewModelBase
     /// <summary>Records that the share details were copied (the view performs the actual clipboard write).</summary>
     public void MarkDetailsCopied() => CopyStatus = "Copied to clipboard.";
 
+    // --- Server activity log -------------------------------------------------------------------------
+
+    private const int MaxLogRows = 300;
+
+    /// <summary>The server's recent activity, newest first.</summary>
+    public ObservableCollection<ServerLogEntry> ServerLogs { get; } = new();
+
+    [ObservableProperty] private bool _hasServerLogs;
+
+    private void AppendLog(ServerLogEntry entry)
+    {
+        ServerLogs.Insert(0, entry);
+        while (ServerLogs.Count > MaxLogRows) ServerLogs.RemoveAt(ServerLogs.Count - 1);
+        HasServerLogs = ServerLogs.Count > 0;
+    }
+
+    [RelayCommand]
+    private void ClearServerLogs()
+    {
+        ServerLogs.Clear();
+        HasServerLogs = false;
+    }
+
     private static string DetectLocalIp()
     {
         try
@@ -253,6 +310,225 @@ public sealed partial class ConnectViewModel : ViewModelBase
         Users.Clear();
         foreach (var u in _host.Users.Users.OrderBy(u => u.Username, StringComparer.OrdinalIgnoreCase))
             Users.Add(new ServerUserRow(u.Username, u.Role));
+    }
+
+    // --- Web server ----------------------------------------------------------------------------------
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowServerLogs))]
+    private bool _webEnabled;
+    [ObservableProperty] private bool _webRunning;
+    [ObservableProperty] private int _webHttpPort;
+    [ObservableProperty] private int _webHttpsPort;
+    [ObservableProperty] private bool _webUpnpEnabled;
+    [ObservableProperty] private string _webExternalUrl = string.Empty;
+    [ObservableProperty] private string _webStatusText = "Web server off";
+
+    private bool _suppressWebEnableHandler;
+
+    async partial void OnWebEnabledChanged(bool value)
+    {
+        if (_suppressWebEnableHandler) return;
+        try
+        {
+            await _host.UpdateSettingsAsync(s => s.WebEnabled = value);
+            if (value && !_webHost.IsRunning) await _webHost.StartAsync();
+            else if (!value && _webHost.IsRunning) await _webHost.StopAsync();
+        }
+        catch (Exception ex)
+        {
+            WebStatusText = $"Could not {(value ? "start" : "stop")} web server: {ex.Message}";
+        }
+        RefreshWebState();
+    }
+
+    private bool _suppressWebUpnpHandler;
+
+    async partial void OnWebUpnpEnabledChanged(bool value)
+    {
+        if (_suppressWebUpnpHandler) return;
+        await _host.UpdateSettingsAsync(s => s.WebUpnpEnabled = value);
+        await RestartWebIfRunning();
+        RefreshWebState();
+    }
+
+    [RelayCommand]
+    private async Task SaveWebSettings()
+    {
+        await _host.UpdateSettingsAsync(s =>
+        {
+            s.WebHttpPort = WebHttpPort;
+            s.WebHttpsPort = WebHttpsPort;
+            s.WebExternalUrl = (WebExternalUrl ?? string.Empty).Trim();
+        });
+        await RestartWebIfRunning();
+        RefreshShares(); // share URLs may now use the external prefix
+        RefreshWebState();
+    }
+
+    /// <summary>Applies web settings changes (ports / UPnP) by cycling the server when it's running.</summary>
+    private async Task RestartWebIfRunning()
+    {
+        if (!_webHost.IsRunning) return;
+        await _webHost.StopAsync();
+        try { await _webHost.StartAsync(); } catch { /* surfaced via state */ }
+    }
+
+    private void RefreshWebState()
+    {
+        WebRunning = _webHost.IsRunning;
+        _suppressWebEnableHandler = true;
+        if (WebEnabled != _host.Settings.WebEnabled) WebEnabled = _host.Settings.WebEnabled;
+        _suppressWebEnableHandler = false;
+
+        _suppressWebUpnpHandler = true;
+        if (WebUpnpEnabled != _host.Settings.WebUpnpEnabled) WebUpnpEnabled = _host.Settings.WebUpnpEnabled;
+        _suppressWebUpnpHandler = false;
+
+        if (_webHost.IsRunning)
+        {
+            if (string.IsNullOrEmpty(LocalIp)) LocalIp = DetectLocalIp();
+            var parts = new System.Collections.Generic.List<string>();
+            if (_webHost.HttpPort > 0) parts.Add($"http://{(string.IsNullOrEmpty(LocalIp) ? "localhost" : LocalIp)}:{_webHost.HttpPort}");
+            if (_webHost.HttpsPort > 0) parts.Add($"https://{(string.IsNullOrEmpty(LocalIp) ? "localhost" : LocalIp)}:{_webHost.HttpsPort}");
+            WebStatusText = "Serving at " + string.Join("  •  ", parts);
+        }
+        else
+        {
+            WebStatusText = _webHost.LastError is { Length: > 0 } err ? $"Web server error: {err}" : "Web server off";
+        }
+    }
+
+    // --- Share links ---------------------------------------------------------------------------------
+
+    public ShareKind[] ShareKindOptions { get; } = { ShareKind.Album, ShareKind.Artist, ShareKind.Song, ShareKind.Playlist };
+
+    [ObservableProperty] private ShareKind _selectedShareKind = ShareKind.Album;
+    [ObservableProperty] private ShareTargetRow? _selectedShareTarget;
+    [ObservableProperty] private int _shareExpiryDays = 7;
+    [ObservableProperty] private string _shareStatus = string.Empty;
+
+    public ObservableCollection<ShareTargetRow> ShareTargets { get; } = new();
+    public ObservableCollection<ShareRow> Shares { get; } = new();
+
+    partial void OnSelectedShareKindChanged(ShareKind value) => ReloadShareTargets();
+
+    private void ReloadShareTargets()
+    {
+        ShareTargets.Clear();
+        switch (SelectedShareKind)
+        {
+            case ShareKind.Album:
+                foreach (var a in _library.Albums)
+                    ShareTargets.Add(new ShareTargetRow(a.Key, $"{a.Title} — {a.AlbumArtist}"));
+                break;
+            case ShareKind.Artist:
+                foreach (var a in _library.Artists) ShareTargets.Add(new ShareTargetRow(a.Key, a.Name));
+                break;
+            case ShareKind.Song:
+                foreach (var t in _library.Tracks) ShareTargets.Add(new ShareTargetRow(t.Id, $"{t.Title} — {t.DisplayArtist}"));
+                break;
+            case ShareKind.Playlist:
+                foreach (var p in _playlists.Playlists) ShareTargets.Add(new ShareTargetRow(p.Id, p.Name));
+                break;
+        }
+        SelectedShareTarget = ShareTargets.Count > 0 ? ShareTargets[0] : null;
+    }
+
+    [RelayCommand]
+    private void CreateShare()
+    {
+        if (SelectedShareTarget is null)
+        {
+            ShareStatus = "Choose an item to share.";
+            return;
+        }
+        var lifetime = ShareExpiryDays > 0 ? TimeSpan.FromDays(ShareExpiryDays) : (TimeSpan?)null;
+        _shares.Create(SelectedShareKind, SelectedShareTarget.Key, SelectedShareTarget.Label, lifetime);
+        RefreshShares();
+        ShareStatus = "Share link created and ready to copy below.";
+    }
+
+    [RelayCommand]
+    private void RevokeShare(ShareRow? row)
+    {
+        if (row is null) return;
+        _shares.Revoke(row.Id);
+        RefreshShares();
+    }
+
+    private void RefreshShares()
+    {
+        Shares.Clear();
+        foreach (var s in _shares.List())
+            Shares.Add(new ShareRow(s.Id, s.Label, s.Kind.ToString(), BuildShareUrl(s.Id),
+                s.ExpiresAt is { } e ? $"expires {e.LocalDateTime:g}" : "no expiry"));
+    }
+
+    private string BuildShareUrl(string token) =>
+        Muselly.App.Services.ShareLinkService.BuildShareUrl(_host.Settings, token, LocalIp);
+
+    // --- Firewall ------------------------------------------------------------------------------------
+
+    public string[] FirewallModeOptions { get; } = { "Off", "Allow listed only", "Block listed" };
+    public FirewallScope[] FirewallScopeOptions { get; } = { FirewallScope.Both, FirewallScope.Server, FirewallScope.Web };
+
+    [ObservableProperty] private int _firewallModeIndex;
+    [ObservableProperty] private string _newFirewallRule = string.Empty;
+    [ObservableProperty] private FirewallScope _newFirewallScope = FirewallScope.Both;
+    [ObservableProperty] private string _firewallStatus = string.Empty;
+
+    public ObservableCollection<FirewallRuleRow> FirewallRules { get; } = new();
+
+    private bool _suppressFirewallMode;
+
+    async partial void OnFirewallModeIndexChanged(int value)
+    {
+        if (_suppressFirewallMode) return;
+        await _host.UpdateSettingsAsync(s => s.Firewall.Mode = (FirewallMode)value);
+        FirewallStatus = value switch
+        {
+            (int)FirewallMode.Allow => "Allow mode: only listed addresses can connect.",
+            (int)FirewallMode.Block => "Block mode: listed addresses are refused.",
+            _ => "Firewall is off."
+        };
+    }
+
+    [RelayCommand]
+    private async Task AddFirewallRule()
+    {
+        var value = (NewFirewallRule ?? string.Empty).Trim();
+        if (!IpFilter.IsValid(value))
+        {
+            FirewallStatus = "Enter a valid address, CIDR (1.1.1.1/16) or range (1.1.0.0-1.1.255.255).";
+            return;
+        }
+
+        var scope = NewFirewallScope;
+        await _host.UpdateSettingsAsync(s => s.Firewall.Rules.Add(new FirewallRule { Value = value, Scope = scope }));
+        NewFirewallRule = string.Empty;
+        RefreshFirewall();
+        FirewallStatus = $"Added {value}.";
+    }
+
+    [RelayCommand]
+    private async Task RemoveFirewallRule(FirewallRuleRow? row)
+    {
+        if (row is null) return;
+        await _host.UpdateSettingsAsync(s =>
+            s.Firewall.Rules.RemoveAll(r => r.Value == row.Value && r.Scope == row.Scope));
+        RefreshFirewall();
+    }
+
+    private void RefreshFirewall()
+    {
+        _suppressFirewallMode = true;
+        FirewallModeIndex = (int)_host.Settings.Firewall.Mode;
+        _suppressFirewallMode = false;
+
+        FirewallRules.Clear();
+        foreach (var r in _host.Settings.Firewall.Rules)
+            FirewallRules.Add(new FirewallRuleRow(r.Value, r.Scope));
     }
 
     // --- Remote servers ------------------------------------------------------------------------------
@@ -391,13 +667,21 @@ public sealed partial class ConnectViewModel : ViewModelBase
         RefreshRemotes();
     }
 
+    [RelayCommand]
+    private async Task ToggleAutoConnect(RemoteServerRow? row)
+    {
+        if (row is null) return;
+        await _remotes.SetAutoConnectAsync(row.Id, !row.AutoConnect);
+        RefreshRemotes();
+    }
+
     private void RefreshRemotes()
     {
         Remotes.Clear();
         foreach (var s in _remotes.Servers)
             Remotes.Add(new RemoteServerRow(s.Id,
                 string.IsNullOrWhiteSpace(s.DisplayName) ? $"{s.Host}:{s.Port}" : s.DisplayName,
-                $"{s.Host}:{s.Port}", _remotes.IsConnected(s.Id), s.PinnedFingerprint));
+                $"{s.Host}:{s.Port}", _remotes.IsConnected(s.Id), s.PinnedFingerprint, s.AutoConnect));
     }
 
     private static void OnUi(Action action)
@@ -421,16 +705,71 @@ public sealed class ServerUserRow
     public string RoleText => Role.ToString();
 }
 
+/// <summary>A pickable share target (album/artist/song/playlist).</summary>
+public sealed class ShareTargetRow
+{
+    public ShareTargetRow(string key, string label)
+    {
+        Key = key;
+        Label = label;
+    }
+
+    public string Key { get; }
+    public string Label { get; }
+    public override string ToString() => Label;
+}
+
+/// <summary>A row in the existing share-links list.</summary>
+public sealed class ShareRow
+{
+    public ShareRow(string id, string label, string kindText, string url, string expiry)
+    {
+        Id = id;
+        Label = label;
+        KindText = kindText;
+        Url = url;
+        Expiry = expiry;
+    }
+
+    public string Id { get; }
+    public string Label { get; }
+    public string KindText { get; }
+    public string Url { get; }
+    public string Expiry { get; }
+    public string Detail => $"{KindText}  •  {Expiry}";
+}
+
+/// <summary>A row in the firewall rules list.</summary>
+public sealed class FirewallRuleRow
+{
+    public FirewallRuleRow(string value, FirewallScope scope)
+    {
+        Value = value;
+        Scope = scope;
+    }
+
+    public string Value { get; }
+    public FirewallScope Scope { get; }
+    public string ScopeText => Scope switch
+    {
+        FirewallScope.Server => "Server",
+        FirewallScope.Web => "Web",
+        _ => "Both"
+    };
+}
+
 /// <summary>A row in the saved remote-servers list.</summary>
 public sealed class RemoteServerRow
 {
-    public RemoteServerRow(string id, string display, string address, bool connected, string fingerprint)
+    public RemoteServerRow(string id, string display, string address, bool connected, string fingerprint,
+        bool autoConnect)
     {
         Id = id;
         Display = display;
         Address = address;
         Connected = connected;
         Fingerprint = fingerprint;
+        AutoConnect = autoConnect;
     }
 
     public string Id { get; }
@@ -439,5 +778,6 @@ public sealed class RemoteServerRow
     public bool Connected { get; }
     public bool NotConnected => !Connected;
     public string Fingerprint { get; }
+    public bool AutoConnect { get; }
     public string StatusText => Connected ? "Connected" : "Not connected";
 }

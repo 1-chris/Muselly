@@ -53,6 +53,9 @@ public sealed class ServerSession
     {
         try
         {
+            // Login logs itself (once the username/role is known); the rest log here, before handling.
+            if (env.Type != MessageType.Login) LogActivity(env);
+
             switch (env.Type)
             {
                 case MessageType.Hello: await HandleHelloAsync(env); break;
@@ -127,12 +130,54 @@ public sealed class ServerSession
             _session = _ctx.Sessions.Create(user.Username, user.Role);
         }
 
+        _ctx.ActivityLog?.Invoke($"{_session.Username} signed in ({_session.Role})");
+
         await SendResponseAsync(env.Id, MessageType.Login, new LoginResponse
         {
             Success = true,
             Role = _session.Role,
             SessionToken = _session.Token
         });
+    }
+
+    /// <summary>Writes a concise activity line describing the request to the host's server log.</summary>
+    private void LogActivity(Envelope env)
+    {
+        var log = _ctx.ActivityLog;
+        if (log is null) return;
+
+        var who = _session?.Username ?? "client";
+        string? detail = env.Type switch
+        {
+            MessageType.Hello => null, // covered by the connect line; skip the noise
+            MessageType.GetLibrary => "requested the library",
+            MessageType.GetAlbumArt => "requested album art",
+            MessageType.GetArtistImage => "requested an artist image",
+            MessageType.GetArtistBio => "requested an artist biography",
+            MessageType.GetLyrics => "requested lyrics",
+            MessageType.StreamTrack => $"streamed {DescribeTrack(env)}",
+            MessageType.AddFolder => "added a music folder",
+            MessageType.RemoveFolder => "removed a music folder",
+            MessageType.Rescan => "triggered a library rescan",
+            MessageType.GetServerSettings => "viewed server settings",
+            MessageType.UpdateServerSettings => "updated server settings",
+            MessageType.ListUsers => "listed users",
+            MessageType.AddUser => "added or updated a user",
+            MessageType.RemoveUser => "removed a user",
+            MessageType.SetUserRole => "changed a user's role",
+            _ => null
+        };
+
+        if (detail is not null) log($"{who} {detail}");
+    }
+
+    private string DescribeTrack(Envelope env)
+    {
+        var req = env.GetPayload<StreamTrackRequest>();
+        var track = req is null ? null : _ctx.Library.FindTrack(req.TrackId);
+        if (track is null) return "a track";
+        var artist = string.IsNullOrWhiteSpace(track.Artist) ? track.DisplayArtist : track.Artist!;
+        return $"\"{track.Title}\" by {artist}";
     }
 
     private async Task RequireAuth(Envelope env, Func<Session, Task> handler)

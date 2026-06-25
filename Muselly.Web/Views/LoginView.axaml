@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.Web.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="Muselly.Web.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+    <Panel Background="{StaticResource CatppuccinBase}">
+        <Border Classes="card" MaxWidth="380" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="26">
+            <StackPanel Spacing="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding ServerName}" Classes="h1"/>
+                    <TextBlock Text="Sign in to browse and play this library." Classes="caption"/>
+                </StackPanel>
+
+                <StackPanel Spacing="10">
+                    <TextBox Text="{Binding Username}" Watermark="Username"/>
+                    <TextBox Text="{Binding Password}" Watermark="Password" PasswordChar="•"/>
+                </StackPanel>
+
+                <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding SignInCommand}" IsEnabled="{Binding !IsBusy}">
+                    <TextBlock Text="Sign in"/>
+                </Button>
+
+                <TextBlock Text="{Binding Status}" Classes="caption" TextWrapping="Wrap"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Panel>
+</UserControl>

@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.Web.ViewModels"
+             xmlns:local="using:Muselly.Web.Views"
+             xmlns:appviews="using:Muselly.App.Views"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="720"
+             x:Class="Muselly.Web.Views.WebShell"
+             x:DataType="vm:WebShellViewModel">
+    <Panel>
+        <!-- The shared app shell, shown once authenticated. -->
+        <appviews:MainView DataContext="{Binding Main}" IsVisible="{Binding AppVisible}"/>
+
+        <!-- Connecting splash while we resolve the host policy / auto guest sign-in. -->
+        <Panel Background="{StaticResource CatppuccinBase}" IsVisible="{Binding ConnectingVisible}">
+            <TextBlock Text="Connecting…" Classes="h3" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Panel>
+
+        <!-- Sign-in form (guest disabled, or an upgrade to a named account). -->
+        <Panel Background="{StaticResource CatppuccinBase}" IsVisible="{Binding LoginVisible}">
+            <local:LoginView DataContext="{Binding Login}"/>
+            <Button Classes="ghost" Content="Back" HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Margin="16,16,0,0" Command="{Binding CancelSignInCommand}"
+                    IsVisible="{Binding IsAuthenticated}"/>
+        </Panel>
+
+        <!-- Top-right actions over the app. -->
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,8,16,0" IsVisible="{Binding AppVisible}">
+            <Button Classes="pill" Content="Sign in" Command="{Binding ShowSignInCommand}"
+                    IsVisible="{Binding CanUpgrade}"/>
+            <Button Classes="pill" Content="Admin" Command="{Binding ToggleAdminCommand}"
+                    IsVisible="{Binding IsAdmin}"/>
+        </StackPanel>
+
+        <!-- Admin overlay. -->
+        <Border Background="#A0000000" IsVisible="{Binding ShowAdmin}">
+            <ScrollViewer VerticalAlignment="Center" HorizontalAlignment="Center" MaxHeight="640">
+                <StackPanel Spacing="10" MaxWidth="560">
+                    <local:AdminView DataContext="{Binding Admin}"/>
+                    <Button Classes="ghost" Content="Close" HorizontalAlignment="Right"
+                            Command="{Binding CloseAdminCommand}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Panel>
+</UserControl>

@@ -19,12 +19,38 @@ public sealed class NullServerHost : IServerHost
     public int ConnectedClients => 0;
     public ServerSettings Settings { get; } = new();
     public IServerUserStore Users { get; } = new NullServerUserStore();
+    public IReadOnlyList<ServerLogEntry> RecentLogs => Array.Empty<ServerLogEntry>();
+
+    public event EventHandler? StateChanged { add { } remove { } }
+    public event EventHandler<ServerLogEntry>? Logged { add { } remove { } }
+
+    public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task StopAsync() => Task.CompletedTask;
+    public Task UpdateSettingsAsync(Action<ServerSettings> mutate) { mutate(Settings); return Task.CompletedTask; }
+}
+
+/// <summary>No-op <see cref="IWebServerHost"/> for heads that can't host (e.g. the browser sandbox).</summary>
+public sealed class NullWebServerHost : IWebServerHost
+{
+    public bool IsRunning => false;
+    public int HttpPort => 0;
+    public int HttpsPort => 0;
+    public string? LastError => null;
 
     public event EventHandler? StateChanged { add { } remove { } }
 
     public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task StopAsync() => Task.CompletedTask;
-    public Task UpdateSettingsAsync(Action<ServerSettings> mutate) { mutate(Settings); return Task.CompletedTask; }
+}
+
+/// <summary>No-op <see cref="IShareService"/> for heads without a server (browser).</summary>
+public sealed class NullShareService : IShareService
+{
+    public IReadOnlyList<ShareLink> List() => Array.Empty<ShareLink>();
+    public ShareLink Create(ShareKind kind, string key, string label, TimeSpan? lifetime) =>
+        new() { Id = string.Empty, Kind = kind, Key = key, Label = label };
+    public ShareLink? Find(string id) => null;
+    public void Revoke(string id) { }
 }
 
 /// <summary>No-op user store backing <see cref="NullServerHost"/>.</summary>
@@ -59,6 +85,7 @@ public sealed class NullRemoteServerManager : IRemoteServerManager
 
     public Task DisconnectAsync(string serverId) => Task.CompletedTask;
     public Task ForgetAsync(string serverId) => Task.CompletedTask;
+    public Task SetAutoConnectAsync(string serverId, bool autoConnect) => Task.CompletedTask;
     public Task<byte[]?> GetResourceAsync(string remoteUri, CancellationToken cancellationToken = default) =>
         Task.FromResult<byte[]?>(null);
     public Task<string?> GetLyricsAsync(string serverId, string trackId, CancellationToken cancellationToken = default) =>

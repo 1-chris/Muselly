@@ -23,4 +23,12 @@ public partial class ConnectView : UserControl
         await clipboard.SetTextAsync(vm.ShareText);
         vm.MarkDetailsCopied();
     }
+
+    private async void OnCopyShare(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is not ShareRow row) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null) return;
+        await clipboard.SetTextAsync(row.Url);
+    }
 }

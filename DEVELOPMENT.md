@@ -24,7 +24,7 @@ is and its features, see [`README.md`](README.md).
 |---|---|---|
 | **.NET SDK** | **10.0.x** | Required for every project. `dotnet --version` should report `10.x`. |
 | **ffmpeg build toolchain** | — | Only needed to (re)build the bundled ffmpeg; see [below](#build-dependencies-per-platform). |
-| **`wasm-tools` workload** | — | Only for the browser/WASM head (`dotnet workload install wasm-tools`). |
+| **`wasm-tools` workload** | — | `dotnet workload install wasm-tools`. Needed for the browser head **and** for the desktop build, which compiles the browser app and bundles it. Opt out with `-p:MusellyBundleWeb=false`. |
 | **`zip`** | — | Only for packaging; `publish-desktop.sh` falls back to `tar.gz` if absent. |
 
 Supported runtime identifiers (RIDs): `linux-x64`, `linux-arm64`, `win-x64`, `osx-arm64`, `osx-x64`.
@@ -32,19 +32,26 @@ Supported runtime identifiers (RIDs): `linux-x64`, `linux-arm64`, `win-x64`, `os
 ## Quick start
 
 ```bash
-# 1. Build the bundled ffmpeg for your machine (decodes audio + encodes Opus for the server).
+# 1. Install the WebAssembly workload (the desktop build compiles + bundles the browser app).
+dotnet workload install wasm-tools
+
+# 2. Build the bundled ffmpeg for your machine (decodes audio + encodes Opus for the server).
 ./scripts/build-ffmpeg.sh
 
-# 2. Build everything.
+# 3. Build everything.
 dotnet build Muselly.sln
 
-# 3. Run the desktop app (auto-copies the ffmpeg you just built next to the app).
+# 4. Run the desktop app (auto-copies the ffmpeg you just built next to the app, and the browser app
+#    into webapp/ so the integrated web server can serve it).
 dotnet run --project Muselly.Desktop
 ```
 
-If you skip step 1, Muselly falls back to an `ffmpeg` on your `PATH`. That binary **must** be built with the
-Ogg/Opus muxers and `libopus` encoder, or server streaming will fail — see
+If you skip the ffmpeg step, Muselly falls back to an `ffmpeg` on your `PATH`. That binary **must** be built
+with the Ogg/Opus muxers and `libopus` encoder, or server streaming will fail — see
 [Troubleshooting](#troubleshooting). Building the bundled one is the reliable path.
+
+If you don't want the browser app bundled (e.g. you haven't installed `wasm-tools`), build/run the desktop
+with `-p:MusellyBundleWeb=false` to skip it.
 
 ## The bundled ffmpeg
 
@@ -113,6 +120,11 @@ dotnet build Muselly.sln                 # Debug
 dotnet build Muselly.sln -c Release      # Release
 ```
 
+> Building `Muselly.Desktop` also compiles `Muselly.Web` (browser-wasm) and copies its `AppBundle` into the
+> desktop output's `webapp/` folder, so the integrated web server serves it with no extra steps. This needs
+> the `wasm-tools` workload. To skip it (faster builds, or no workload installed), pass
+> `-p:MusellyBundleWeb=false`.
+
 ## Running
 
 ### Desktop (Windows / Linux / macOS)
@@ -124,9 +136,30 @@ dotnet run --project Muselly.Desktop
 The build copies `third_party/ffmpeg/<host-rid>/ffmpeg` to the output directory (via `PreserveNewest`), so a
 freshly rebuilt ffmpeg is picked up automatically the next time you build or run.
 
-### Web (browser / WASM demo)
+### Web (browser client) + the web server
 
-The web head is a **demo only** — no native folder scanning or audio in the browser sandbox.
+The browser app is a **real client** of a Muselly web server — it signs in, streams Opus from the host and
+(for admins) manages the host's library. It is not a standalone static site; it needs a backing host.
+
+Two ways to serve it:
+
+- **From the desktop app:** open **Connect**, set the HTTP/HTTPS ports and turn the web server on. The desktop
+  build already bundled the browser app into `webapp/`, so it's served immediately. Browse to
+  `http://localhost:<port>`.
+- **From the headless host** (no UI; ideal for a NAS/server box):
+
+```bash
+./publish-web.sh                                              # stages the bundle into dist/web/
+MUSELLY_WEBROOT="$(pwd)/dist/web" \
+  dotnet run --project Muselly.Headless -- --add /path/to/music
+```
+
+`Muselly.Headless` runs the same engine as the desktop. Options: `--add <folder>` (repeatable),
+`--http <port>`, `--https <port>`, `--no-web`, `--no-server`. It resolves the browser bundle from
+`MUSELLY_WEBROOT`, else a `webapp/` folder next to the binary.
+
+To iterate on the browser app itself with the Avalonia dev server (UI only; talks to whatever host origin it
+is served from):
 
 ```bash
 dotnet workload install wasm-tools
@@ -145,6 +178,10 @@ Self-contained packages (the .NET runtime is bundled; target machines need no .N
 
 ./publish-web.sh                          # WASM bundle -> dist/web/
 ```
+
+Each desktop package also includes the browser app under `webapp/` (built via the `wasm-tools` workload), so
+enabling the web server in a published build serves the browser app out of the box. Pass
+`-p:MusellyBundleWeb=false` to `dotnet publish` to skip it.
 
 `publish-desktop.sh` builds the matching ffmpeg per RID first (best-effort; locally this only succeeds for
 RIDs your host can build). Run targets inside each package:

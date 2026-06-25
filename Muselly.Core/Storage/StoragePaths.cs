@@ -84,6 +84,9 @@ public static class StoragePaths
     /// <summary>Persisted list of saved remote servers (with pinned fingerprints).</summary>
     public static string RemotesFile() => Path.Combine(ConfigDirectory(), "remotes.json");
 
+    /// <summary>Persisted guest share links.</summary>
+    public static string SharesFile() => Path.Combine(ConfigDirectory(), "shares.json");
+
     /// <summary>On-disk cache of server-transcoded Opus files (size-bounded).</summary>
     public static string TranscodeCacheDirectory()
     {

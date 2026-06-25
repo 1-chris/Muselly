@@ -35,6 +35,7 @@
         <ProjectReference Include="..\Muselly.Core\Muselly.Core.csproj" />
         <ProjectReference Include="..\Muselly.Audio\Muselly.Audio.csproj" />
         <ProjectReference Include="..\Muselly.Server\Muselly.Server.csproj" />
+        <ProjectReference Include="..\Muselly.WebHost\Muselly.WebHost.csproj" />
     </ItemGroup>
 
     <!-- Bundle the matching pre-built ffmpeg binary (see scripts/build-ffmpeg.sh) next to the app so audio
@@ -67,4 +68,38 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
+
+    <!-- Build the WebAssembly browser app and bundle it into the desktop output as "webapp/", so the
+         built-in web server can serve it with no extra steps. Requires the wasm-tools workload. Opt out with
+         -p:MusellyBundleWeb=false (e.g. if the workload isn't installed). The web build is invoked with the
+         desktop's RID/TFM properties stripped so it uses its own browser-wasm target. -->
+    <PropertyGroup>
+        <MusellyBundleWeb Condition="'$(MusellyBundleWeb)' == ''">true</MusellyBundleWeb>
+        <MusellyWebProject>$(MSBuildThisFileDirectory)../Muselly.Web/Muselly.Web.csproj</MusellyWebProject>
+        <MusellyWebBundle>$(MSBuildThisFileDirectory)../Muselly.Web/bin/$(Configuration)/net10.0-browser/browser-wasm/AppBundle</MusellyWebBundle>
+    </PropertyGroup>
+
+    <Target Name="BuildMusellyWebApp" Condition="'$(MusellyBundleWeb)' == 'true'" BeforeTargets="Build">
+        <Message Importance="high" Text="Building Muselly.Web (browser-wasm) for bundling into the desktop app…" />
+        <MSBuild Projects="$(MusellyWebProject)"
+                 Targets="Build"
+                 Properties="Configuration=$(Configuration)"
+                 RemoveProperties="RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishProtocol;TargetFramework;Platform;PublishDir;RuntimeIdentifierOverride" />
+        <ItemGroup>
+            <_MusellyWebFiles Include="$(MusellyWebBundle)/**/*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(_MusellyWebFiles)"
+              DestinationFiles="@(_MusellyWebFiles->'$(OutDir)webapp/%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- On publish, copy the same bundle into the published output's webapp/ folder. -->
+    <Target Name="CopyMusellyWebAppToPublish" Condition="'$(MusellyBundleWeb)' == 'true'" AfterTargets="Publish">
+        <ItemGroup>
+            <_MusellyWebPublishFiles Include="$(MusellyWebBundle)/**/*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(_MusellyWebPublishFiles)"
+              DestinationFiles="@(_MusellyWebPublishFiles->'$(PublishDir)webapp/%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+    </Target>
 </Project>

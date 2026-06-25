@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
+using Muselly.Core.Models;
 using Muselly.Core.Services.Interfaces;
+using Muselly.Core.Util;
 
 namespace Muselly.Core.Services.Web;
 
@@ -57,6 +59,9 @@ public sealed class ArtworkScanService : IArtworkScanService
             var missing = new List<(string Key, string Artist, string Title)>();
             foreach (var album in _library.Albums)
             {
+                // Never fetch art for albums merged in from a connected server — those are the host's to manage,
+                // and their artwork is streamed remotely rather than stored locally.
+                if (!IsLocal(album)) continue;
                 if (HasArtwork(album.ArtworkPath)) continue;
                 missing.Add((album.Key, album.AlbumArtist, album.Title));
             }
@@ -104,6 +109,15 @@ public sealed class ArtworkScanService : IArtworkScanService
     }
 
     private static bool HasArtwork(string? path) => !string.IsNullOrEmpty(path) && File.Exists(path);
+
+    /// <summary>True if the album has at least one track sourced from the local disk (not a remote server).</summary>
+    private static bool IsLocal(Album album)
+    {
+        foreach (var t in album.Tracks)
+            if (!RemoteSource.IsRemote(t.Source))
+                return true;
+        return false;
+    }
 
     private void Report(bool running, int processed, int total, int found, string? item) =>
         ProgressChanged?.Invoke(this, new ArtworkScanProgress

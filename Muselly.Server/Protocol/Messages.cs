@@ -132,3 +132,42 @@ public sealed class OkResponse
     public bool Ok { get; set; } = true;
     public string? Error { get; set; }
 }
+
+public sealed class ShareLoginRequest
+{
+    public string Token { get; set; } = string.Empty;
+}
+
+public sealed class ShareLoginResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public UserRole Role { get; set; }
+    public string SessionToken { get; set; } = string.Empty;
+    public ShareKind Kind { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+}
+
+public sealed class ShareDto
+{
+    public string Id { get; set; } = string.Empty;
+    public ShareKind Kind { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? ExpiresAt { get; set; }
+}
+
+public sealed class ShareListResponse
+{
+    public List<ShareDto> Shares { get; set; } = new();
+}
+
+public sealed class CreateShareRequest
+{
+    public ShareKind Kind { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public int? Days { get; set; }
+}

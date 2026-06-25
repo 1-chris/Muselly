@@ -23,15 +23,17 @@ public sealed partial class LibraryViewModel : ViewModelBase
     private readonly IQueueService _queue;
     private readonly IPlaylistService _playlists;
     private readonly INavigationService _nav;
+    private readonly IShareLinkService _shareLinks;
 
     public LibraryViewModel(ILibraryService library, PlaybackCoordinator coordinator, IQueueService queue,
-        IPlaylistService playlists, INavigationService nav)
+        IPlaylistService playlists, INavigationService nav, IShareLinkService shareLinks)
     {
         _library = library;
         _coordinator = coordinator;
         _queue = queue;
         _playlists = playlists;
         _nav = nav;
+        _shareLinks = shareLinks;
         _library.LibraryChanged += (_, _) => OnUi(Reload);
         Reload();
     }
@@ -41,6 +43,12 @@ public sealed partial class LibraryViewModel : ViewModelBase
     public RangeObservableCollection<Track> Songs { get; } = new();
     public RangeObservableCollection<FolderNode> FolderRoots { get; } = new();
     public RangeObservableCollection<Track> FolderTracks { get; } = new();
+
+    // The albums/artists grids aren't virtualized (wrapping grid), so they're populated incrementally — a
+    // page at a time as the user scrolls — to keep first paint fast and memory bounded on large libraries.
+    private const int PageSize = 60;
+    private List<Album> _allAlbums = new();
+    private List<Artist> _allArtists = new();
 
     private CancellationTokenSource? _filterCts;
 
@@ -103,6 +111,47 @@ public sealed partial class LibraryViewModel : ViewModelBase
 
     [RelayCommand] private void QueueSong(Track? track) { if (track is not null) _queue.Enqueue(new[] { track }); }
     [RelayCommand] private void QueueSongNext(Track? track) { if (track is not null) _queue.EnqueueNext(new[] { track }); }
+
+    /// <summary>True where guest share links can be created (host heads). Drives the "Copy share link" items.</summary>
+    public bool CanShare => _shareLinks.CanShare;
+
+    [ObservableProperty] private string _shareStatus = string.Empty;
+
+    public bool HasShareStatus => !string.IsNullOrEmpty(ShareStatus);
+
+    partial void OnShareStatusChanged(string value) => OnPropertyChanged(nameof(HasShareStatus));
+
+    [RelayCommand]
+    private async Task ShareAlbum(Album? album)
+    {
+        if (album is not null) await CopyShareAsync(await _shareLinks.CreateAsync(ShareKind.Album, album.Key, album.Title));
+    }
+
+    [RelayCommand]
+    private async Task ShareArtist(Artist? artist)
+    {
+        if (artist is not null) await CopyShareAsync(await _shareLinks.CreateAsync(ShareKind.Artist, artist.Key, artist.Name));
+    }
+
+    [RelayCommand]
+    private async Task ShareSong(Track? track)
+    {
+        if (track is not null) await CopyShareAsync(await _shareLinks.CreateAsync(ShareKind.Song, track.Id, track.Title));
+    }
+
+    private async Task CopyShareAsync(ShareCreateResult? result)
+    {
+        if (result is null) { await SetShareStatus("Sign in as a User or Admin to create share links."); return; }
+        var copied = await Services.AppClipboard.SetTextAsync(result.Url);
+        await SetShareStatus(copied ? "Share link copied to clipboard." : "Share link created.");
+    }
+
+    private async Task SetShareStatus(string message)
+    {
+        ShareStatus = message;
+        await Task.Delay(3500);
+        if (ShareStatus == message) ShareStatus = string.Empty;
+    }
 
     [RelayCommand] private void PlayAllSongs() => _coordinator.Play(new List<Track>(Songs));
     [RelayCommand] private void ShuffleAllSongs() => _coordinator.PlayShuffled(new List<Track>(Songs));
@@ -193,15 +242,38 @@ public sealed partial class LibraryViewModel : ViewModelBase
             OnUi(() =>
             {
                 if (ct.IsCancellationRequested) return;
-                Albums.Reset(result.albums);
-                Artists.Reset(result.artists);
-                Songs.Reset(result.songs);
+                _allAlbums = result.albums;
+                _allArtists = result.artists;
+                Albums.Reset(Page(_allAlbums, 0));
+                Artists.Reset(Page(_allArtists, 0));
+                Songs.Reset(result.songs); // the songs list virtualizes, so no paging needed
             });
         }
         catch (System.OperationCanceledException)
         {
             // Superseded by a newer query — ignore.
         }
+    }
+
+    /// <summary>Appends the next page of albums when the grid is scrolled near its end.</summary>
+    public void LoadMoreAlbums()
+    {
+        if (Albums.Count >= _allAlbums.Count) return;
+        Albums.AddRange(Page(_allAlbums, Albums.Count));
+    }
+
+    /// <summary>Appends the next page of artists when the grid is scrolled near its end.</summary>
+    public void LoadMoreArtists()
+    {
+        if (Artists.Count >= _allArtists.Count) return;
+        Artists.AddRange(Page(_allArtists, Artists.Count));
+    }
+
+    private static List<T> Page<T>(List<T> source, int offset)
+    {
+        if (offset >= source.Count) return new List<T>();
+        var count = System.Math.Min(PageSize, source.Count - offset);
+        return source.GetRange(offset, count);
     }
 
     private static bool Contains(string? haystack, string needle) =>

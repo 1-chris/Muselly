@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,12 +20,15 @@ public sealed partial class PlaylistsViewModel : ViewModelBase
     private readonly IPlaylistService _playlists;
     private readonly PlaybackCoordinator _coordinator;
     private readonly IQueueService _queue;
+    private readonly IShareLinkService _shareLinks;
 
-    public PlaylistsViewModel(IPlaylistService playlists, PlaybackCoordinator coordinator, IQueueService queue)
+    public PlaylistsViewModel(IPlaylistService playlists, PlaybackCoordinator coordinator, IQueueService queue,
+        IShareLinkService shareLinks)
     {
         _playlists = playlists;
         _coordinator = coordinator;
         _queue = queue;
+        _shareLinks = shareLinks;
         _playlists.Changed += (_, _) => OnUi(ReloadList);
         ReloadList();
     }
@@ -105,6 +109,33 @@ public sealed partial class PlaylistsViewModel : ViewModelBase
         var index = SelectedTracks.IndexOf(track);
         var list = new List<Track>(SelectedTracks);
         if (index >= 0) _coordinator.Play(list, index);
+    }
+
+    /// <summary>True where guest share links can be created (host heads).</summary>
+    public bool CanShare => _shareLinks.CanShare;
+
+    [ObservableProperty] private string _shareStatus = string.Empty;
+
+    public bool HasShareStatus => !string.IsNullOrEmpty(ShareStatus);
+
+    partial void OnShareStatusChanged(string value) => OnPropertyChanged(nameof(HasShareStatus));
+
+    [RelayCommand]
+    private async Task Share(Playlist? playlist)
+    {
+        var target = playlist ?? SelectedPlaylist;
+        if (target is null) return;
+        var result = await _shareLinks.CreateAsync(ShareKind.Playlist, target.Id, target.Name);
+        if (result is null) { await SetShareStatus("Sign in as a User or Admin to create share links."); return; }
+        var copied = await Services.AppClipboard.SetTextAsync(result.Url);
+        await SetShareStatus(copied ? "Share link copied to clipboard." : "Share link created.");
+    }
+
+    private async Task SetShareStatus(string message)
+    {
+        ShareStatus = message;
+        await Task.Delay(3500);
+        if (ShareStatus == message) ShareStatus = string.Empty;
     }
 
     [RelayCommand]

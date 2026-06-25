@@ -89,47 +89,11 @@ public sealed class LibraryService : ILibraryService
             foreach (var folder in folders)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!Directory.Exists(folder)) continue;
-                try
-                {
-                    var option = recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-                    foreach (var file in Directory.EnumerateFiles(folder, "*", option))
-                        if (AudioFormats.IsSupported(file))
-                            files.Add(file);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to enumerate {Folder}", folder);
-                }
+                files.AddRange(EnumerateAudioFiles(folder, recurse));
             }
 
-            var total = files.Count;
-            Report(ScanPhase.Reading, 0, total, null);
+            var scanned = await ReadTracksAsync(files, cancellationToken).ConfigureAwait(false);
 
-            var results = new ConcurrentBag<Track>();
-            var processed = 0;
-            // Throttle progress events: at most ~one per 1% (or per file for small libraries).
-            var step = Math.Max(1, total / 100);
-
-            var parallel = new ParallelOptions
-            {
-                CancellationToken = cancellationToken,
-                MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount)
-            };
-
-            await Task.Run(() => Parallel.ForEach(files, parallel, file =>
-            {
-                var track = _metadata.Read(file);
-                if (track is not null) results.Add(track);
-
-                var done = Interlocked.Increment(ref processed);
-                if (done % step == 0 || done == total)
-                    Report(ScanPhase.Reading, done, total, Path.GetFileName(file));
-            }), cancellationToken).ConfigureAwait(false);
-
-            Report(ScanPhase.Organizing, total, total, null);
-
-            var scanned = new List<Track>(results);
             _localTracks = scanned;
             RebuildCombined();
 
@@ -139,7 +103,7 @@ public sealed class LibraryService : ILibraryService
                 ScannedAt = DateTimeOffset.Now
             });
 
-            Report(ScanPhase.Completed, total, total, null);
+            Report(ScanPhase.Completed, scanned.Count, scanned.Count, null);
             LibraryChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (OperationCanceledException)
@@ -150,6 +114,102 @@ public sealed class LibraryService : ILibraryService
         {
             IsScanning = false;
         }
+    }
+
+    public async Task ScanFolderAsync(string folder, CancellationToken cancellationToken = default)
+    {
+        if (IsScanning || string.IsNullOrWhiteSpace(folder)) return;
+        IsScanning = true;
+        try
+        {
+            var recurse = _settings.Current.ScanSubdirectories;
+            var full = Path.GetFullPath(folder);
+
+            Report(ScanPhase.Discovering, 0, 0, null);
+            var files = EnumerateAudioFiles(full, recurse);
+
+            var scanned = await ReadTracksAsync(files, cancellationToken).ConfigureAwait(false);
+
+            // Merge: drop any existing local tracks living under this folder, then add the fresh scan. Tracks
+            // under other folders (and all remote tracks) are left untouched.
+            List<Track> merged;
+            lock (_gate)
+            {
+                merged = new List<Track>(_localTracks.Count + scanned.Count);
+                foreach (var t in _localTracks)
+                    if (!IsUnderOrEqual(t.Directory, full))
+                        merged.Add(t);
+                merged.AddRange(scanned);
+                _localTracks = merged;
+            }
+
+            RebuildCombined();
+
+            JsonStore.Save(StoragePaths.LibraryCacheFile(), new LibrarySnapshot
+            {
+                Tracks = merged,
+                ScannedAt = DateTimeOffset.Now
+            });
+
+            Report(ScanPhase.Completed, scanned.Count, scanned.Count, null);
+            LibraryChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            Report(ScanPhase.Idle, 0, 0, null);
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    private List<string> EnumerateAudioFiles(string folder, bool recurse)
+    {
+        var files = new List<string>();
+        if (!Directory.Exists(folder)) return files;
+        try
+        {
+            var option = recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            foreach (var file in Directory.EnumerateFiles(folder, "*", option))
+                if (AudioFormats.IsSupported(file))
+                    files.Add(file);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enumerate {Folder}", folder);
+        }
+        return files;
+    }
+
+    private async Task<List<Track>> ReadTracksAsync(List<string> files, CancellationToken cancellationToken)
+    {
+        var total = files.Count;
+        Report(ScanPhase.Reading, 0, total, null);
+
+        var results = new ConcurrentBag<Track>();
+        var processed = 0;
+        // Throttle progress events: at most ~one per 1% (or per file for small libraries).
+        var step = Math.Max(1, total / 100);
+
+        var parallel = new ParallelOptions
+        {
+            CancellationToken = cancellationToken,
+            MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount)
+        };
+
+        await Task.Run(() => Parallel.ForEach(files, parallel, file =>
+        {
+            var track = _metadata.Read(file);
+            if (track is not null) results.Add(track);
+
+            var done = Interlocked.Increment(ref processed);
+            if (done % step == 0 || done == total)
+                Report(ScanPhase.Reading, done, total, Path.GetFileName(file));
+        }), cancellationToken).ConfigureAwait(false);
+
+        Report(ScanPhase.Organizing, total, total, null);
+        return new List<Track>(results);
     }
 
     public Task ApplyAlbumArtworkAsync(string albumKey, string artworkPath) => Task.Run(() =>

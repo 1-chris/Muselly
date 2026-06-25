@@ -44,6 +44,13 @@
                             <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconDelete}"
                                                  Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                  CommandParameter="{Binding}" ToolTip.Tip="Delete"/>
+                            <Grid.ContextMenu>
+                                <ContextMenu Opening="OnPlaylistMenuOpening">
+                                    <MenuItem Header="Copy share link" Tag="playlist.share" Click="OnPlaylistMenuClick">
+                                        <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconConnect}"/></MenuItem.Icon>
+                                    </MenuItem>
+                                </ContextMenu>
+                            </Grid.ContextMenu>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -66,6 +73,8 @@
                     <Button Classes="accent" Command="{Binding PlayCommand}"><TextBlock Text="Play"/></Button>
                     <Button Classes="pill" Content="Shuffle" Command="{Binding ShuffleCommand}"/>
                     <Button Classes="pill" Content="Add to queue" Command="{Binding AddToQueueCommand}"/>
+                    <Button Classes="pill" Content="Copy share link" Command="{Binding ShareCommand}"
+                            IsVisible="{Binding CanShare}"/>
                     <Button Classes="pill" Content="Randomize order" Command="{Binding RandomizeCommand}"/>
                     <Button Classes="pill" Content="Sort">
                         <Button.Flyout>
@@ -122,6 +131,13 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
             </Grid>
+
+            <!-- Transient share-link confirmation -->
+            <Border Background="{StaticResource CatppuccinSurface1}" CornerRadius="10" Padding="14,10"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
+                    IsVisible="{Binding HasShareStatus}">
+                <TextBlock Text="{Binding ShareStatus}" Foreground="{StaticResource CatppuccinText}"/>
+            </Border>
         </Panel>
     </Grid>
 </UserControl>

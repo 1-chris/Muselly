@@ -18,9 +18,16 @@
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     </ItemGroup>
     <ItemGroup>
         <WasmExtraFilesToDeploy Include="wwwroot/index.html" />
+        <WasmExtraFilesToDeploy Include="wwwroot/interop.js" />
+    </ItemGroup>
+    <!-- Embedded fonts: the browser backend renders text itself and cannot use OS fonts, so we bundle Inter
+         (via the package) plus a Japanese-capable fallback for CJK glyphs. -->
+    <ItemGroup>
+        <AvaloniaResource Include="Assets/Fonts/*.ttf" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\Muselly.App\Muselly.App.csproj" />

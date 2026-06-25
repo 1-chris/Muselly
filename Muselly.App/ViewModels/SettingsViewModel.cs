@@ -102,7 +102,15 @@ public sealed partial class SettingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(path)) return;
         _settings.AddMusicFolder(path);
         ReloadFolders();
-        await Rescan();
+        // Only scan the folder that was just added, not the entire library.
+        await _library.ScanFolderAsync(path);
+    }
+
+    [RelayCommand]
+    private async Task RescanFolder(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || IsScanning) return;
+        await _library.ScanFolderAsync(path);
     }
 
     [RelayCommand]

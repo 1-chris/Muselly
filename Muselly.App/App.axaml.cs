@@ -50,6 +50,8 @@ namespace Muselly.App
 
             // UI-layer services: native folder picker, the transport coordinator that bridges the queue
             // and the audio backend, and the navigation/history service.
+            services.AddSingleton<Services.IClientContext, Services.LocalClientContext>();
+            services.AddSingleton<Services.IShareLinkService, Services.ShareLinkService>();
             services.AddSingleton<Services.IFolderPicker, Services.StorageFolderPicker>();
             services.AddSingleton<Services.IJapaneseTextService, Services.JapaneseTextService>();
             services.AddSingleton<Services.PlaybackCoordinator>();
@@ -59,6 +61,8 @@ namespace Muselly.App
             // head overrides these (and the audio source resolver) with the real Muselly.Server services.
             services.AddSingleton<IServerHost, Services.NullServerHost>();
             services.AddSingleton<IRemoteServerManager, Services.NullRemoteServerManager>();
+            services.AddSingleton<IWebServerHost, Services.NullWebServerHost>();
+            services.AddSingleton<IShareService, Services.NullShareService>();
 
             // View models. Panel view models are singletons: they share state for the lifetime of the
             // single main view.

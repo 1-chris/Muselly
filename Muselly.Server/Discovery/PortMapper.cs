@@ -14,17 +14,22 @@ public sealed class PortMapper : IDisposable
     private readonly ILogger _logger;
     private readonly List<INatDevice> _devices = new();
     private readonly object _gate = new();
-    private int _port;
+    private readonly List<int> _ports = new();
     private bool _running;
 
     public PortMapper(ILogger logger) => _logger = logger;
 
-    public void Start(int port)
+    /// <summary>Maps one or more TCP ports (e.g. the server port, or the web server's HTTP + HTTPS ports).</summary>
+    public void Start(params int[] ports)
     {
         lock (_gate)
         {
             if (_running) Stop();
-            _port = port;
+            _ports.Clear();
+            foreach (var p in ports)
+                if (p > 0 && !_ports.Contains(p)) _ports.Add(p);
+            if (_ports.Count == 0) return;
+
             _running = true;
             NatUtility.DeviceFound += OnDeviceFound;
             try { NatUtility.StartDiscovery(NatProtocol.Pmp, NatProtocol.Upnp); }
@@ -34,22 +39,24 @@ public sealed class PortMapper : IDisposable
 
     private async void OnDeviceFound(object? sender, DeviceEventArgs e)
     {
-        int port;
+        int[] ports;
         lock (_gate)
         {
             if (!_running) return;
             if (!_devices.Contains(e.Device)) _devices.Add(e.Device);
-            port = _port;
+            ports = _ports.ToArray();
         }
-        try
+        foreach (var port in ports)
         {
-            await e.Device.CreatePortMapAsync(new Mapping(MapProtocol.Tcp, port, port))
-                .ConfigureAwait(false);
-            _logger.LogInformation("Mapped external TCP port {Port} via {Device}.", port, e.Device.NatProtocol);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to create port mapping on a discovered device.");
+            try
+            {
+                await e.Device.CreatePortMapAsync(new Mapping(MapProtocol.Tcp, port, port)).ConfigureAwait(false);
+                _logger.LogInformation("Mapped external TCP port {Port} via {Device}.", port, e.Device.NatProtocol);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to map port {Port} on a discovered device.", port);
+            }
         }
     }
 
@@ -63,11 +70,13 @@ public sealed class PortMapper : IDisposable
             try { NatUtility.StopDiscovery(); } catch { /* ignore */ }
 
             foreach (var device in _devices)
-            {
-                try { device.DeletePortMap(new Mapping(MapProtocol.Tcp, _port, _port)); }
-                catch { /* ignore */ }
-            }
+                foreach (var port in _ports)
+                {
+                    try { device.DeletePortMap(new Mapping(MapProtocol.Tcp, port, port)); }
+                    catch { /* ignore */ }
+                }
             _devices.Clear();
+            _ports.Clear();
         }
     }
 

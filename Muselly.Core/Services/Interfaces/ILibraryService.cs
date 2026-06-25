@@ -45,6 +45,13 @@ public interface ILibraryService
     Task ScanAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Scans a single folder, merging the result into the existing local library: tracks already known under
+    /// <paramref name="folder"/> are replaced with the fresh scan, while tracks under other folders are left
+    /// untouched. Used when adding a folder or rescanning just one, so the whole library isn't re-read.
+    /// </summary>
+    Task ScanFolderAsync(string folder, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sets the cached artwork path on every track of the given album, rebuilds the organisations and
     /// persists the change. Used by the "scan for missing album art" feature. Raises <see cref="LibraryChanged"/>.
     /// </summary>

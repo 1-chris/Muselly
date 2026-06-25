@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Description>Muselly.WebHost - ASP.NET Core host that serves the browser app and a JSON API onto the integrated server engine. Shared by the desktop app and the headless host.</Description>
+    <Authors>Muselly</Authors>
+    <Company>Muselly</Company>
+    <Product>Muselly.WebHost</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Muselly.Core\Muselly.Core.csproj" />
+    <ProjectReference Include="..\Muselly.Server\Muselly.Server.csproj" />
+  </ItemGroup>
+</Project>

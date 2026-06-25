@@ -72,9 +72,7 @@
                                 </StackPanel>
                                 <Button.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="Play"
-                                                  Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                  CommandParameter="{Binding}"/>
+                                        <MenuItem Header="Play" Tag="album.play" Click="OnAlbumMenuClick"/>
                                     </ContextMenu>
                                 </Button.ContextMenu>
                             </Button>

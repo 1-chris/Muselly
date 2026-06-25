@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Muselly.App.ViewModels"
              xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="900"
              x:Class="Muselly.App.Views.ConnectView"
              x:DataType="vm:ConnectViewModel">
@@ -15,8 +16,17 @@
                 <TextBlock Classes="caption"
                            Text="Share this library with other Muselly apps, or connect to someone else's server. All traffic is end-to-end encrypted (TLS 1.3)."/>
 
+                <!-- Browser note: host management lives in the desktop app. -->
+                <Border Classes="card" IsVisible="{Binding !CanManageHost}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Managed by the host" Classes="h3"/>
+                        <TextBlock Classes="caption" TextWrapping="Wrap"
+                                   Text="Server, web, firewall and account settings are managed from the computer hosting this library. Admins can manage its music folders from the Admin panel."/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Built-in server -->
-                <Border Classes="card">
+                <Border Classes="card" IsVisible="{Binding CanManageHost}">
                     <StackPanel Spacing="14">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Spacing="2">
@@ -115,8 +125,203 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Web server -->
+                <Border Classes="card" IsVisible="{Binding CanManageHost}">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Web server" Classes="h3"/>
+                                <TextBlock Classes="caption" Text="{Binding WebStatusText}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding WebEnabled}" VerticalAlignment="Center"
+                                          OnContent="On" OffContent="Off"/>
+                        </Grid>
+                        <TextBlock Classes="caption" TextWrapping="Wrap"
+                                   Text="Serves the Muselly web app in a browser, backed by this computer's library. Guests can browse if guest access is on; otherwise visitors sign in. Admins can manage this host's folders and rescans from the browser."/>
+
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="12">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="HTTP port" Width="120"
+                                       VerticalAlignment="Center" Classes="caption"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding WebHttpPort}" Width="120"
+                                     HorizontalAlignment="Left"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="HTTPS port" Width="120"
+                                       VerticalAlignment="Center" Classes="caption"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding WebHttpsPort}" Width="120"
+                                     HorizontalAlignment="Left"/>
+                        </Grid>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="External web address (optional)" Classes="caption"
+                                       Foreground="{StaticResource CatppuccinText}" FontWeight="SemiBold"/>
+                            <TextBlock Classes="caption" TextWrapping="Wrap"
+                                       Text="Public base URL used when building share links (e.g. a domain or reverse proxy). Leave blank to use this computer's address automatically."/>
+                            <TextBox Text="{Binding WebExternalUrl}" Watermark="https://music.example.com:1234/"/>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="UPnP port forwarding" Foreground="{StaticResource CatppuccinText}"
+                                           FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Classes="caption" Text="Open the web server's HTTP and HTTPS ports on your router so it's reachable from outside your network."/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding WebUpnpEnabled}" VerticalAlignment="Center"
+                                          OnContent="On" OffContent="Off"/>
+                        </Grid>
+
+                        <Button Classes="accent" Command="{Binding SaveWebSettingsCommand}" HorizontalAlignment="Left">
+                            <TextBlock Text="Save web ports"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Firewall -->
+                <Border Classes="card" IsVisible="{Binding CanManageHost}">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Firewall" Classes="h3"/>
+                            <TextBlock Classes="caption"
+                                       Text="Optionally restrict who can connect by IP. Allow mode permits only listed addresses; Block mode refuses listed addresses. Rules can target the built-in server, the web server, or both."/>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                            <TextBlock Grid.Column="0" Text="Mode" Width="60" VerticalAlignment="Center" Classes="caption"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding FirewallModeOptions}"
+                                      SelectedIndex="{Binding FirewallModeIndex}" Width="200" HorizontalAlignment="Left"/>
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding FirewallRules}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FirewallRuleRow">
+                                    <Border Classes="surface" Padding="12,8" Margin="0,3">
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Value}" VerticalAlignment="Center"
+                                                       FontFamily="monospace" Foreground="{StaticResource CatppuccinText}"/>
+                                            <Border Grid.Column="1" Background="{StaticResource CatppuccinSurface1}"
+                                                    CornerRadius="6" Padding="8,3" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ScopeText}" FontSize="11"
+                                                           Foreground="{StaticResource CatppuccinMauve}"/>
+                                            </Border>
+                                            <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconDelete}"
+                                                                 Command="{Binding DataContext.RemoveFirewallRuleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                 CommandParameter="{Binding}" ToolTip.Tip="Remove rule"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Classes="surface" Padding="12,10">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Add rule" FontWeight="SemiBold" FontSize="12"
+                                           Foreground="{StaticResource CatppuccinText}"/>
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                                    <TextBox Grid.Column="0" Text="{Binding NewFirewallRule}"
+                                             Watermark="1.1.1.1  •  1.1.1.1/16  •  1.1.0.0-1.1.255.255"/>
+                                    <ComboBox Grid.Column="1" ItemsSource="{Binding FirewallScopeOptions}"
+                                              SelectedItem="{Binding NewFirewallScope}" Width="110"/>
+                                    <Button Grid.Column="2" Classes="accent" Command="{Binding AddFirewallRuleCommand}">
+                                        <TextBlock Text="Add"/>
+                                    </Button>
+                                </Grid>
+                                <TextBlock Text="{Binding FirewallStatus}" Classes="caption" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Share links -->
+                <Border Classes="card" IsVisible="{Binding CanManageHost}">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Guest share links" Classes="h3"/>
+                            <TextBlock Classes="caption" TextWrapping="Wrap"
+                                       Text="Create a temporary link that opens straight to one album, artist, song or playlist as a guest — even when guest access is off. The recipient can only see what you shared. Requires the web server."/>
+                        </StackPanel>
+
+                        <Border Classes="surface" Padding="12,10">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <ComboBox Grid.Column="0" ItemsSource="{Binding ShareKindOptions}"
+                                              SelectedItem="{Binding SelectedShareKind}" Width="120"/>
+                                    <ComboBox Grid.Column="1" ItemsSource="{Binding ShareTargets}"
+                                              SelectedItem="{Binding SelectedShareTarget}" HorizontalAlignment="Stretch"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                                    <TextBlock Grid.Column="0" Text="Expires (days, 0 = never)" VerticalAlignment="Center"
+                                               Classes="caption"/>
+                                    <TextBox Grid.Column="1" Text="{Binding ShareExpiryDays}" Width="80"/>
+                                    <Button Grid.Column="2" Classes="accent" HorizontalAlignment="Right"
+                                            Command="{Binding CreateShareCommand}">
+                                        <TextBlock Text="Create link"/>
+                                    </Button>
+                                </Grid>
+                                <TextBlock Text="{Binding ShareStatus}" Classes="caption" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{Binding Shares}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ShareRow">
+                                    <Border Classes="surface" Padding="12,10" Margin="0,3">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{StaticResource CatppuccinText}"/>
+                                                <TextBlock Classes="caption" Text="{Binding Detail}"/>
+                                            </StackPanel>
+                                            <Button Grid.Row="0" Grid.Column="1" Classes="ghost" Content="Copy"
+                                                    Margin="0,0,8,0" Click="OnCopyShare"/>
+                                            <controls:IconButton Grid.Row="0" Grid.Column="2" Classes="small"
+                                                                 Icon="{StaticResource IconDelete}"
+                                                                 Command="{Binding DataContext.RevokeShareCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                 CommandParameter="{Binding}" ToolTip.Tip="Revoke link"/>
+                                            <SelectableTextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                                                 Margin="0,6,0,0" Text="{Binding Url}" FontFamily="monospace"
+                                                                 FontSize="11" TextWrapping="Wrap"
+                                                                 Foreground="{StaticResource CatppuccinTeal}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Server logs -->
+                <Border Classes="card" IsVisible="{Binding ShowServerLogs}">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Server logs" Classes="h3"/>
+                                <TextBlock Classes="caption"
+                                           Text="Live activity while the server is on: connections, sign-ins, requested content and admin commands."/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="ghost" Content="Clear" VerticalAlignment="Center"
+                                    Command="{Binding ClearServerLogsCommand}"/>
+                        </Grid>
+
+                        <Border Classes="surface" Padding="12,10" MinHeight="80">
+                            <Panel>
+                                <TextBlock Classes="caption" Text="No activity yet." IsVisible="{Binding !HasServerLogs}"/>
+                                <ScrollViewer MaxHeight="240" IsVisible="{Binding HasServerLogs}">
+                                    <ItemsControl ItemsSource="{Binding ServerLogs}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="models:ServerLogEntry">
+                                                <TextBlock Text="{Binding Display}" FontFamily="monospace" FontSize="11"
+                                                           TextWrapping="NoWrap" Margin="0,1"
+                                                           Foreground="{StaticResource CatppuccinSubtext0}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Panel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <!-- Users -->
-                <Border Classes="card">
+                <Border Classes="card" IsVisible="{Binding CanManageHost}">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="2">
                             <TextBlock Text="Users" Classes="h3"/>
@@ -166,7 +371,7 @@
                 </Border>
 
                 <!-- Remote servers -->
-                <Border Classes="card">
+                <Border Classes="card" IsVisible="{Binding CanManageHost}">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="2">
                             <TextBlock Text="Connect to a server" Classes="h3"/>
@@ -201,23 +406,28 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RemoteServerRow">
                                     <Border Classes="surface" Padding="12,10" Margin="0,3">
-                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                                             <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding Display}" FontWeight="SemiBold"
                                                            Foreground="{StaticResource CatppuccinText}"/>
                                                 <TextBlock Text="{Binding Address}" Classes="caption"/>
                                             </StackPanel>
-                                            <TextBlock Grid.Column="1" Text="{Binding StatusText}" Classes="caption"
+                                            <CheckBox Grid.Column="1" Content="Auto-reconnect" VerticalAlignment="Center"
+                                                      Margin="0,0,12,0" IsChecked="{Binding AutoConnect, Mode=OneWay}"
+                                                      Command="{Binding DataContext.ToggleAutoConnectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                      CommandParameter="{Binding}"
+                                                      ToolTip.Tip="Reconnect to this server when Muselly starts"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding StatusText}" Classes="caption"
                                                        VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                            <Button Grid.Column="2" Classes="pill" Content="Connect" Margin="0,0,8,0"
+                                            <Button Grid.Column="3" Classes="pill" Content="Connect" Margin="0,0,8,0"
                                                     IsVisible="{Binding NotConnected}"
                                                     Command="{Binding DataContext.ConnectSavedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}"/>
-                                            <Button Grid.Column="2" Classes="pill" Content="Disconnect" Margin="0,0,8,0"
+                                            <Button Grid.Column="3" Classes="pill" Content="Disconnect" Margin="0,0,8,0"
                                                     IsVisible="{Binding Connected}"
                                                     Command="{Binding DataContext.DisconnectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}"/>
-                                            <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconDelete}"
+                                            <controls:IconButton Grid.Column="4" Classes="small" Icon="{StaticResource IconDelete}"
                                                                  Command="{Binding DataContext.ForgetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                                  CommandParameter="{Binding}" ToolTip.Tip="Forget server"/>
                                         </Grid>
