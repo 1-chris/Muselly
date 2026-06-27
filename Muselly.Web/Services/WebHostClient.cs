@@ -162,6 +162,71 @@ public sealed class WebHostClient
         catch { return null; }
     }
 
+    // --- Users / profiles / per-user data ------------------------------------------------------------
+
+    public async Task<UserProfileListClientDto?> GetUsersAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var req = Request(HttpMethod.Get, "/api/users");
+            using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<UserProfileListClientDto>(Json, ct) : null;
+        }
+        catch { return null; }
+    }
+
+    public async Task<UserProfileClientDto?> GetProfileAsync(string username, CancellationToken ct = default)
+    {
+        try
+        {
+            using var req = Request(HttpMethod.Get, "/api/users/profile?username=" + Uri.EscapeDataString(username));
+            using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<UserProfileClientDto>(Json, ct) : null;
+        }
+        catch { return null; }
+    }
+
+    public Task<bool> UpdateProfileAsync(object profile, CancellationToken ct = default) =>
+        PostAsync("/api/users/profile", profile, ct);
+
+    public async Task<FavoritesClientDto?> GetFavoritesAsync(string username, CancellationToken ct = default)
+    {
+        try
+        {
+            using var req = Request(HttpMethod.Get, "/api/users/favorites?username=" + Uri.EscapeDataString(username));
+            using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<FavoritesClientDto>(Json, ct) : null;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Sets (favorite != null) or toggles (favorite == null) a favourite for the current user.
+    /// Returns the resulting favourited state.</summary>
+    public async Task<bool> SetFavoriteAsync(FavoriteKind kind, string key, bool? favorite, CancellationToken ct = default)
+    {
+        try
+        {
+            using var req = Request(HttpMethod.Post, "/api/users/favorites");
+            req.Content = JsonContent.Create(new { username = _session.Username, kind, key, favorite }, options: Json);
+            using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) return favorite ?? false;
+            var dto = await resp.Content.ReadFromJsonAsync<ToggleFavoriteClientDto>(Json, ct);
+            return dto?.Favorited ?? false;
+        }
+        catch { return favorite ?? false; }
+    }
+
+    public async Task<HistoryClientDto?> GetHistoryAsync(string username, CancellationToken ct = default)
+    {
+        try
+        {
+            using var req = Request(HttpMethod.Get, "/api/users/history?username=" + Uri.EscapeDataString(username));
+            using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<HistoryClientDto>(Json, ct) : null;
+        }
+        catch { return null; }
+    }
+
     /// <summary>An absolute, token-bearing URL the browser's audio element can stream Opus from.</summary>
     public string StreamUrl(string hostTrackId, int bitrate)
     {

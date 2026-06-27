@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Muselly.App.Services;
 using Muselly.Core.Models;
 using Muselly.Core.Services.Interfaces;
+using Muselly.Core.Util;
 
 namespace Muselly.App.ViewModels;
 
@@ -16,26 +18,42 @@ public sealed partial class AlbumDetailViewModel : ViewModelBase
     private readonly PlaybackCoordinator _coordinator;
     private readonly IQueueService _queue;
     private readonly IPlaylistService _playlists;
+    private readonly IFavoritesService _favorites;
     private readonly Action _back;
     private readonly Action<string> _openArtist;
 
     public AlbumDetailViewModel(Album album, PlaybackCoordinator coordinator, IQueueService queue,
-        IPlaylistService playlists, Action back, Action<string> openArtist)
+        IPlaylistService playlists, IFavoritesService favorites, Action back, Action<string> openArtist)
     {
         Album = album;
         _coordinator = coordinator;
         _queue = queue;
         _playlists = playlists;
+        _favorites = favorites;
         _back = back;
         _openArtist = openArtist;
+        _isFavorite = favorites.IsFavorite(FavoriteKind.Album, album.Key);
+        favorites.Changed += OnFavoritesChanged;
     }
+
+    [ObservableProperty] private bool _isFavorite;
+
+    private void OnFavoritesChanged(object? sender, EventArgs e) =>
+        IsFavorite = _favorites.IsFavorite(FavoriteKind.Album, Album.Key);
+
+    [RelayCommand] private void ToggleFavorite() => _favorites.Toggle(FavoriteKind.Album, Album.Key);
 
     public Album Album { get; }
 
+    /// <summary>Stable key for remembering this page's scroll position across back/forward navigation.</summary>
+    public string ScrollKey => "album/" + Album.Key;
+
     public IReadOnlyList<Track> Tracks => Album.Tracks;
 
-    /// <summary>The album-artist's grouping key (tracks share it), for navigating to the artist page.</summary>
-    public string ArtistKey => Album.Tracks.Count > 0 ? Album.Tracks[0].ArtistKey : string.Empty;
+    /// <summary>The album-artist's grouping key, for navigating to the artist page. Derived from the album
+    /// artist (not a track) so a compilation header links to "Various Artists", while each track row still
+    /// links to its own performer.</summary>
+    public string ArtistKey => Identifiers.ArtistKey(Album.AlbumArtist);
 
     public string MetaLine =>
         $"{(Album.Year > 0 ? Album.Year + "  •  " : "")}{Album.TrackCount} tracks";

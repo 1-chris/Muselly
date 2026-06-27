@@ -41,8 +41,19 @@ public interface ILibraryService
     /// <summary>Loads the persisted snapshot from disk and rebuilds the organisations. Fast; no file I/O on audio.</summary>
     Task LoadAsync();
 
-    /// <summary>Rescans every configured folder, reads metadata, rebuilds the organisations and persists.</summary>
+    /// <summary>Re-applies the compilation-merge and de-duplication passes and rebuilds the organisations from
+    /// the current tracks, without re-reading files. Used when a related setting changes. Raises
+    /// <see cref="LibraryChanged"/>.</summary>
+    void RefreshOrganization();
+
+    /// <summary>Full rescan: re-reads every file in every configured folder, so new files are added, edits
+    /// are picked up and tracks whose files are gone are removed. Previously-fetched album art is preserved.
+    /// Rebuilds the organisations and persists.</summary>
     Task ScanAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Incremental scan: reads only files not already in the library and appends them, leaving
+    /// existing tracks (and nothing removed) untouched. Fast for adding newly-added songs.</summary>
+    Task ScanNewAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Scans a single folder, merging the result into the existing local library: tracks already known under

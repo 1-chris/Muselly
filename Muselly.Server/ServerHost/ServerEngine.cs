@@ -33,6 +33,9 @@ public sealed class ServerEngine
         ISettingsService settings,
         ILoggerFactory loggerFactory,
         IShareService shares,
+        UserStore users,
+        IUserService userService,
+        IUserDataStore userData,
         ILyricsService? lyrics = null,
         IArtistInfoService? artistInfo = null,
         IPlaylistService? playlists = null)
@@ -45,9 +48,11 @@ public sealed class ServerEngine
         Lyrics = lyrics;
         ArtistInfo = artistInfo;
         Playlists = playlists;
+        UserService = userService;
+        UserData = userData;
 
         _config = JsonStore.Load(StoragePaths.ServerConfigFile(), () => new ServerSettings());
-        Users = new UserStore();
+        Users = users;
         Sessions = new SessionManager();
         Transcoder = new OpusTranscoder();
         TranscodeCache = new TranscodeCache(StoragePaths.TranscodeCacheDirectory(), Transcoder,
@@ -67,6 +72,8 @@ public sealed class ServerEngine
     public IArtistInfoService? ArtistInfo { get; }
     public IShareService Shares { get; }
     public IPlaylistService? Playlists { get; }
+    public IUserService UserService { get; }
+    public IUserDataStore UserData { get; }
 
     public ServerSettings Config => _config;
     public string LibraryEtag => _libraryEtag;
@@ -103,6 +110,8 @@ public sealed class ServerEngine
         Library = Library,
         Settings = AppSettingsService,
         Users = Users,
+        UserService = UserService,
+        UserData = UserData,
         Sessions = Sessions,
         TranscodeCache = TranscodeCache,
         ServerSettings = () => _config,

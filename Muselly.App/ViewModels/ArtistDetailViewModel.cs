@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -22,30 +23,62 @@ public sealed partial class ArtistDetailViewModel : ViewModelBase
     private readonly PlaybackCoordinator _coordinator;
     private readonly IQueueService _queue;
     private readonly IArtistInfoService _artistInfo;
+    private readonly IFavoritesService _favorites;
     private readonly bool _autoFetch;
     private readonly Action<Album> _openAlbum;
     private readonly Action _back;
 
     public ArtistDetailViewModel(Artist artist, PlaybackCoordinator coordinator, IQueueService queue,
-        IArtistInfoService artistInfo, bool autoFetchBiography, Action<Album> openAlbum, Action back)
+        IArtistInfoService artistInfo, IFavoritesService favorites, bool autoFetchBiography,
+        Action<Album> openAlbum, Action back)
     {
         Artist = artist;
         _coordinator = coordinator;
         _queue = queue;
         _artistInfo = artistInfo;
+        _favorites = favorites;
         _autoFetch = autoFetchBiography;
         _openAlbum = openAlbum;
         _back = back;
 
         _imagePath = artist.ArtworkPath;
+        _isFavorite = favorites.IsFavorite(FavoriteKind.Artist, artist.Key);
+        favorites.Changed += (_, _) => IsFavorite = _favorites.IsFavorite(FavoriteKind.Artist, Artist.Key);
         _ = LoadBiographyAsync();
     }
 
+    [ObservableProperty] private bool _isFavorite;
+
+    [RelayCommand] private void ToggleFavorite() => _favorites.Toggle(FavoriteKind.Artist, Artist.Key);
+
     public Artist Artist { get; }
+
+    /// <summary>Stable key for remembering this page's scroll position across back/forward navigation.</summary>
+    public string ScrollKey => "artist/" + Artist.Key;
 
     public IReadOnlyList<Album> Albums => Artist.Albums;
 
     public string Subtitle => $"{Artist.AlbumCount} albums  •  {Artist.TrackCount} tracks";
+
+    private const int TopSongsLimit = 5;
+
+    /// <summary>The artist's songs, capped to the top few until the user expands the list.</summary>
+    public IReadOnlyList<Track> DisplayedSongs =>
+        ShowAllSongs ? Artist.Tracks : Artist.Tracks.Take(TopSongsLimit).ToList();
+
+    public bool HasSongs => Artist.Tracks.Count > 0;
+
+    public bool CanShowMoreSongs => Artist.Tracks.Count > TopSongsLimit;
+
+    public string SongsExpandLabel => ShowAllSongs ? "Show less" : $"Show all {Artist.Tracks.Count} songs";
+
+    [ObservableProperty] private bool _showAllSongs;
+
+    partial void OnShowAllSongsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(DisplayedSongs));
+        OnPropertyChanged(nameof(SongsExpandLabel));
+    }
 
     [ObservableProperty] private string? _imagePath;
     [ObservableProperty] private string? _biography;
@@ -79,6 +112,19 @@ public sealed partial class ArtistDetailViewModel : ViewModelBase
     [RelayCommand] private void AddToQueueShuffled() => _queue.EnqueueShuffled(Artist.Tracks);
 
     [RelayCommand] private void ToggleBiography() => IsBiographyExpanded = !IsBiographyExpanded;
+
+    [RelayCommand] private void ToggleSongs() => ShowAllSongs = !ShowAllSongs;
+
+    [RelayCommand]
+    private void PlaySong(Track? track)
+    {
+        if (track is null) return;
+        // Play from the chosen song through the rest of the artist's tracks.
+        var index = 0;
+        for (var i = 0; i < Artist.Tracks.Count; i++)
+            if (ReferenceEquals(Artist.Tracks[i], track) || Artist.Tracks[i].Id == track.Id) { index = i; break; }
+        _coordinator.Play(Artist.Tracks, index);
+    }
 
     [RelayCommand]
     private async Task FetchBiography()

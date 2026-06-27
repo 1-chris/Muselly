@@ -171,3 +171,87 @@ public sealed class CreateShareRequest
     public string Label { get; set; } = string.Empty;
     public int? Days { get; set; }
 }
+
+// --- Users / profiles / per-user data ----------------------------------------------------------------
+
+/// <summary>A user profile over the wire. Facets the caller may not see are blanked/omitted by the server.</summary>
+public sealed class UserProfileDto
+{
+    public string Username { get; set; } = string.Empty;
+    public bool IsBuiltIn { get; set; }
+    public bool IsAdmin { get; set; }
+    public string? Bio { get; set; }
+    public bool HasPicture { get; set; }
+    public PrivacyVisibility ProfileVisibility { get; set; }
+    public PrivacyVisibility FavoritesVisibility { get; set; }
+    public PrivacyVisibility NowPlayingVisibility { get; set; }
+    public PrivacyVisibility ListeningHistoryVisibility { get; set; }
+    public bool RemoteLoginEnabled { get; set; }
+
+    /// <summary>True when the requesting user is allowed to edit this profile (self or admin).</summary>
+    public bool CanEdit { get; set; }
+
+    public bool CanViewFavorites { get; set; }
+    public bool CanViewNowPlaying { get; set; }
+    public bool CanViewHistory { get; set; }
+}
+
+public sealed class UserProfileListResponse
+{
+    public List<UserProfileDto> Users { get; set; } = new();
+}
+
+/// <summary>Identifies a target user for a profile/favourites/history request.</summary>
+public sealed class UserRequest
+{
+    public string Username { get; set; } = string.Empty;
+}
+
+/// <summary>Profile edits submitted by a user. Username changes are honoured only for the built-in user.</summary>
+public sealed class UpdateProfileRequest
+{
+    public string Username { get; set; } = string.Empty;
+    public string? Bio { get; set; }
+    public PrivacyVisibility ProfileVisibility { get; set; }
+    public PrivacyVisibility FavoritesVisibility { get; set; }
+    public PrivacyVisibility NowPlayingVisibility { get; set; }
+    public PrivacyVisibility ListeningHistoryVisibility { get; set; }
+}
+
+public sealed class FavoriteDto
+{
+    public FavoriteKind Kind { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public DateTimeOffset AddedAt { get; set; }
+}
+
+public sealed class FavoritesResponse
+{
+    public List<FavoriteDto> Favorites { get; set; } = new();
+}
+
+public sealed class ToggleFavoriteRequest
+{
+    public string Username { get; set; } = string.Empty;
+    public FavoriteKind Kind { get; set; }
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>When set, forces the favourite on/off; when null, toggles.</summary>
+    public bool? Favorite { get; set; }
+}
+
+public sealed class ToggleFavoriteResponse
+{
+    public bool Favorited { get; set; }
+}
+
+public sealed class HistoryEntryDto
+{
+    public string TrackId { get; set; } = string.Empty;
+    public DateTimeOffset PlayedAt { get; set; }
+}
+
+public sealed class HistoryResponse
+{
+    public List<HistoryEntryDto> Entries { get; set; } = new();
+}

@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="Muselly.App.Views.UserProfileView"
+             x:DataType="vm:UserProfileViewModel">
+
+    <ScrollViewer Margin="24,12,24,18">
+        <StackPanel Spacing="18" MaxWidth="720" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4">
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <controls:AlbumArt Width="140" Height="140" CornerRadius="70" Source="{Binding ProfilePicturePath}"/>
+                    <Button Classes="pill compact" Content="Choose picture" HorizontalAlignment="Center"
+                            Click="OnChoosePicture" IsVisible="{Binding CanEdit}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="22,0,0,0" VerticalAlignment="Center" Spacing="10">
+                    <TextBlock Text="USER" Classes="caption" Foreground="{StaticResource CatppuccinMauve}" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Username}" Classes="h1" IsVisible="{Binding !CanEdit}"/>
+                    <TextBox Text="{Binding Username}" PlaceholderText="Username" MaxWidth="320" HorizontalAlignment="Left"
+                             IsVisible="{Binding CanEdit}" IsEnabled="{Binding IsBuiltIn}"/>
+                    <TextBlock Text="Built-in admin (this device)" Classes="subtle" IsVisible="{Binding IsBuiltIn}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Bio -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Bio" Classes="h3"/>
+                <TextBlock Text="{Binding Bio}" TextWrapping="Wrap" Classes="subtle" IsVisible="{Binding !CanEdit}"/>
+                <TextBox Text="{Binding Bio}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70"
+                         PlaceholderText="Tell people about yourself…" IsVisible="{Binding CanEdit}"/>
+            </StackPanel>
+
+            <!-- Privacy (editable for own profile / admins) -->
+            <StackPanel Spacing="8" IsVisible="{Binding CanEdit}">
+                <TextBlock Text="Privacy" Classes="h3"/>
+                <TextBlock Classes="caption" Text="Everything is private by default. Make a facet public to share it."/>
+                <CheckBox Content="Profile visible in the Users directory" IsChecked="{Binding IsProfilePublic}"/>
+                <CheckBox Content="Favourites public" IsChecked="{Binding IsFavoritesPublic}"/>
+                <CheckBox Content="Now playing public" IsChecked="{Binding IsNowPlayingPublic}"/>
+                <CheckBox Content="Listening history public" IsChecked="{Binding IsHistoryPublic}"/>
+                <Button Classes="accent compact" Content="Save profile" HorizontalAlignment="Left"
+                        Command="{Binding SaveCommand}" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Built-in: enable remote (web/server) login -->
+            <Border Classes="card" IsVisible="{Binding IsBuiltIn}" Padding="14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Remote login" Classes="h3"/>
+                    <TextBlock Classes="caption"
+                               Text="The desktop app never asks you to log in. Set a username and password to allow signing in from the web/server as this admin user."/>
+                    <TextBlock Classes="subtle" IsVisible="{Binding RemoteLoginEnabled}" Text="Remote login is enabled."/>
+                    <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8" IsVisible="{Binding CanEdit}">
+                        <TextBox Grid.Column="0" Text="{Binding CredentialUsername}" PlaceholderText="Username"/>
+                        <TextBox Grid.Column="1" Text="{Binding CredentialPassword}" PlaceholderText="Password" PasswordChar="•"/>
+                        <Button Grid.Column="2" Classes="pill" Content="Set" Command="{Binding SetCredentialsCommand}"/>
+                    </Grid>
+                    <TextBlock Classes="caption" Text="{Binding CredentialStatus}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Now playing -->
+            <StackPanel Spacing="6" IsVisible="{Binding CanSeeNowPlaying}">
+                <TextBlock Text="Now playing" Classes="h3"/>
+                <TextBlock Text="{Binding NowPlayingText}" Classes="subtle"/>
+            </StackPanel>
+
+            <!-- Favourite songs -->
+            <StackPanel Spacing="6" IsVisible="{Binding CanSeeFavorites}">
+                <TextBlock Text="Favourite songs" Classes="h3"/>
+                <TextBlock Classes="caption"
+                           Text="{Binding FavoriteAlbumCount, StringFormat='{}{0} favourite albums'}"/>
+                <ItemsControl ItemsSource="{Binding FavoriteSongs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Track">
+                            <Grid ColumnDefinitions="*,Auto" Height="38">
+                                <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center"
+                                           FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DisplayArtist}" VerticalAlignment="Center"
+                                           FontSize="12" Classes="subtle"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Listening history -->
+            <StackPanel Spacing="6" IsVisible="{Binding CanSeeHistory}">
+                <TextBlock Text="Recently played" Classes="h3"/>
+                <ItemsControl ItemsSource="{Binding RecentTracks}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Track">
+                            <Grid ColumnDefinitions="*,Auto" Height="38">
+                                <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center"
+                                           FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DisplayArtist}" VerticalAlignment="Center"
+                                           FontSize="12" Classes="subtle"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

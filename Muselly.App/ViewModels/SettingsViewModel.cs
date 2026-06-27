@@ -38,6 +38,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _artworkScan = artworkScan;
 
         _scanSubdirectories = settings.Current.ScanSubdirectories;
+        _mergeCompilationAlbums = settings.Current.MergeCompilationAlbums;
+        _deduplicateTracks = settings.Current.DeduplicateTracks;
         _fontScale = settings.Current.FontScale;
         _currentThemeName = settings.Current.ThemeName;
         _eqEnabled = equalizer.Enabled;
@@ -61,6 +63,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> EqPresets { get; } = new[] { "Flat", "Bass Boost", "Treble Boost", "Vocal", "Rock", "Loudness" };
 
     [ObservableProperty] private bool _scanSubdirectories;
+    [ObservableProperty] private bool _mergeCompilationAlbums;
+    [ObservableProperty] private bool _deduplicateTracks;
     [ObservableProperty] private double _fontScale;
     [ObservableProperty] private string _currentThemeName;
     [ObservableProperty] private bool _isScanning;
@@ -88,6 +92,18 @@ public sealed partial class SettingsViewModel : ViewModelBase
     }
 
     partial void OnScanSubdirectoriesChanged(bool value) => _settings.Update(s => s.ScanSubdirectories = value);
+
+    partial void OnMergeCompilationAlbumsChanged(bool value)
+    {
+        _settings.Update(s => s.MergeCompilationAlbums = value);
+        _library.RefreshOrganization();
+    }
+
+    partial void OnDeduplicateTracksChanged(bool value)
+    {
+        _settings.Update(s => s.DeduplicateTracks = value);
+        _library.RefreshOrganization();
+    }
 
     partial void OnFontScaleChanged(double value)
     {
@@ -126,6 +142,13 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         if (IsScanning) return;
         await _library.ScanAsync();
+    }
+
+    [RelayCommand]
+    private async Task ScanNew()
+    {
+        if (IsScanning) return;
+        await _library.ScanNewAsync();
     }
 
     [RelayCommand]

@@ -48,6 +48,20 @@ public sealed class NullPlaybackService : IPlaybackService, IDisposable
         PositionChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void RestorePaused(Track track, TimeSpan position)
+    {
+        lock (_gate)
+        {
+            Current = track;
+            Duration = track.Duration > TimeSpan.Zero ? track.Duration : TimeSpan.FromMinutes(3);
+            Position = Clamp(position);
+            State = PlaybackState.Paused;
+            _timer.Stop();
+        }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        PositionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Prepare(Track track) { /* nothing to pre-decode in the simulator */ }
 
     public void Pause()

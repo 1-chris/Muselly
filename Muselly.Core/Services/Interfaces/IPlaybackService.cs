@@ -35,6 +35,13 @@ public interface IPlaybackService
     void Play(Track track);
 
     /// <summary>
+    /// Loads <paramref name="track"/> and holds it <b>paused</b> at <paramref name="position"/> without
+    /// starting playback — used to restore the previous session on launch so the user resumes exactly where
+    /// they left off. Backends that can't seek precisely may approximate.
+    /// </summary>
+    void RestorePaused(Track track, TimeSpan position);
+
+    /// <summary>
     /// Hints that <paramref name="track"/> will likely play next, so the backend can pre-decode/buffer it
     /// for a gapless transition. May be a no-op.
     /// </summary>

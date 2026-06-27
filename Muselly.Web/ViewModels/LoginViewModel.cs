@@ -51,7 +51,7 @@ public sealed partial class LoginViewModel : ViewModelBase
         if (result is { Success: true })
         {
             _session.ServerName = ServerName;
-            _session.SignIn(result.SessionToken, result.Role);
+            _session.SignIn(result.SessionToken, result.Role, "guest");
             await _loader.RefreshAsync();
             return true;
         }
@@ -71,7 +71,7 @@ public sealed partial class LoginViewModel : ViewModelBase
             if (result is { Success: true })
             {
                 _session.ServerName = ServerName;
-                _session.SignIn(result.SessionToken, result.Role);
+                _session.SignIn(result.SessionToken, result.Role, Username);
                 Password = string.Empty;
                 Status = "Loading library…";
                 await _loader.RefreshAsync();

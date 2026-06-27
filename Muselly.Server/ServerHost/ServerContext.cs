@@ -18,6 +18,8 @@ public sealed class ServerContext
     public required ILibraryService Library { get; init; }
     public required ISettingsService Settings { get; init; }
     public required IServerUserStore Users { get; init; }
+    public required IUserService UserService { get; init; }
+    public required IUserDataStore UserData { get; init; }
     public required SessionManager Sessions { get; init; }
     public required TranscodeCache TranscodeCache { get; init; }
     public required Func<ServerSettings> ServerSettings { get; init; }

@@ -21,6 +21,22 @@ A cross-platform music player built with **.NET 10** and **Avalonia 12**, themed
   and a **10-band graphic equaliser** (with presets) applied to all playback, cross-platform.
 - **Touch + desktop** — generous hit targets, hover affordances and right-click / long-press context menus.
 
+> [!WARNING]
+> ## macOS + SMB cannot open files with NFD (decomposed-Unicode) names
+>
+> This is a **fatal macOS design flaw**, not a Muselly bug — and it is **unfixable from any application**.
+>
+> If you scan a music folder on an **SMB share** (e.g. a Samba/Linux NAS) from **macOS**, any file whose
+> name contains **decomposed (NFD) Unicode** — combining accents like `é` = `e`+◌́, or Japanese katakana
+> with dakuten like `グ` = `ク`+◌゙ — **cannot be opened**. macOS lists the file via `readdir`, but on
+> `open()` its SMB client sends a re-normalized (NFC) name the server doesn't have, so the kernel returns
+> `ENOENT` ("Could not find file"). We verified this end-to-end: it fails for **every** API and even for raw
+> `open()`/`openat()` syscalls fed the **exact on-disk bytes** — so no library (ATL, .NET, or our own I/O)
+> can read these files. NFC-named files on the same share work fine.
+>
+> Muselly skips such files and reports the count in the scan summary. The bug is entirely on macOS's side:
+> the same SMB share, the same files, read from Linux or Windows, work without issue.
+
 Business logic lives in `Muselly.Core` (no UI dependency); the UI, custom controls and theming live in
 `Muselly.App`. Audio is **dependency-free**: `Muselly.Audio` decodes files to PCM (WAV natively; other
 formats via the `ffmpeg` CLI) and plays them through native output drivers — **CoreAudio**

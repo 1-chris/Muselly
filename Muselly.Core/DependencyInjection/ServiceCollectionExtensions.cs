@@ -21,6 +21,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILibraryService, LibraryService>();
         services.AddSingleton<IQueueService, QueueService>();
         services.AddSingleton<IPlaylistService, PlaylistService>();
+        services.AddSingleton<IFavoritesService, FavoritesService>();
+        services.AddSingleton<IListeningHistoryService, ListeningHistoryService>();
+        // Optional dependency on IServerUserStore (only registered by heads that run the server) — resolved
+        // via the service provider so the core build works without it.
+        services.AddSingleton<IUserService>(sp =>
+            new UserService(sp.GetService<IServerUserStore>()));
         services.AddSingleton<IPlaybackService, NullPlaybackService>();
 
         // Default (local-only) audio source resolver. Desktop layers a remote-aware one on top.

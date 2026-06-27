@@ -35,7 +35,13 @@ public partial class MainWindow : ChromedWindow
         => WindowState = WindowState.Minimized;
 
     private void MaximizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-        => ToggleMaximize();
+    {
+        // In fullscreen (the custom macOS green button is only shown there) this acts as "exit fullscreen".
+        if (WindowState == WindowState.FullScreen)
+            WindowState = WindowState.Normal;
+        else
+            ToggleMaximize();
+    }
 
     private void CloseButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         => Close();

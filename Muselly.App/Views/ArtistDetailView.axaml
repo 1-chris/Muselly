@@ -21,6 +21,10 @@
                 <WrapPanel Margin="0,8,0,0">
                     <Button Classes="accent compact" Margin="0,0,8,8" Command="{Binding PlayCommand}"><TextBlock Text="Play"/></Button>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Shuffle" Command="{Binding PlayShuffledCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="♡ Favourite" Command="{Binding ToggleFavoriteCommand}"
+                            IsVisible="{Binding !IsFavorite}"/>
+                    <Button Classes="accent compact" Margin="0,0,8,8" Content="♥ Favourited" Command="{Binding ToggleFavoriteCommand}"
+                            IsVisible="{Binding IsFavorite}"/>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Play next" Command="{Binding PlayNextCommand}"/>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Add to queue" Command="{Binding AddToQueueCommand}"/>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Queue shuffled" Command="{Binding AddToQueueShuffledCommand}"/>
@@ -28,7 +32,7 @@
             </StackPanel>
         </Grid>
 
-        <ScrollViewer Grid.Row="1">
+        <ScrollViewer Grid.Row="1" controls:ScrollMemory.Key="{Binding ScrollKey}">
             <StackPanel Spacing="12">
 
                 <!-- Biography -->
@@ -51,6 +55,36 @@
                                        Text="{Binding BiographySource, StringFormat='from {0}'}"/>
                         </StackPanel>
                     </StackPanel>
+                </StackPanel>
+
+                <!-- Top songs -->
+                <StackPanel Spacing="8" IsVisible="{Binding HasSongs}">
+                    <TextBlock Text="Songs" Classes="h2"/>
+                    <ItemsControl ItemsSource="{Binding DisplayedSongs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:Track">
+                                <Grid ColumnDefinitions="*,Auto,Auto" Height="44" Background="Transparent"
+                                      controls:DoubleTappedBehavior.Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                      controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                        <TextBlock Text="{Binding DisplayAlbum}" FontSize="11" Classes="subtle"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="subtle" FontSize="12"
+                                               Margin="0,0,8,0"
+                                               Text="{Binding Duration, Converter={StaticResource DurationConverter}}"/>
+                                    <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconPlay}"
+                                                         Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                         CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Classes="link" HorizontalAlignment="Left" FontSize="12"
+                            Content="{Binding SongsExpandLabel}" Command="{Binding ToggleSongsCommand}"
+                            IsVisible="{Binding CanShowMoreSongs}"/>
                 </StackPanel>
 
                 <TextBlock Text="Albums" Classes="h2"/>

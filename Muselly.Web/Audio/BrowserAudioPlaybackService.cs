@@ -65,6 +65,17 @@ public sealed class BrowserAudioPlaybackService : IPlaybackService
         PositionChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void RestorePaused(Track track, TimeSpan position)
+    {
+        // Restore the transport metadata paused; the element is (re)loaded on the next play.
+        Current = track;
+        Duration = track.Duration > TimeSpan.Zero ? track.Duration : TimeSpan.Zero;
+        Position = position < TimeSpan.Zero ? TimeSpan.Zero : position;
+        State = PlaybackState.Paused;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        PositionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Prepare(Track track) { /* the browser buffers the element itself */ }
 
     public void Pause()

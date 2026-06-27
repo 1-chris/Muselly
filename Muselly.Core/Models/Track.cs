@@ -59,6 +59,10 @@ public sealed class Track
     /// <summary>Absolute path to the cached cover image extracted from the file, if any.</summary>
     public string? ArtworkPath { get; init; }
 
+    /// <summary>True when the file declares itself part of a compilation (iTunes <c>cpil</c> / ID3 <c>TCMP</c>
+    /// / Vorbis <c>COMPILATION</c>). Used to group such tracks under a single "Various Artists" album.</summary>
+    public bool IsCompilation { get; init; }
+
     /// <summary>Stable key identifying the album this track belongs to (album-artist + album name).</summary>
     public string AlbumKey { get; init; } = string.Empty;
 
@@ -80,13 +84,22 @@ public sealed class Track
     public string DisplayAlbum => string.IsNullOrWhiteSpace(Album) ? "Unknown Album" : Album!;
 
     /// <summary>Returns a copy of this track with a different cached artwork path (tracks are immutable).</summary>
-    public Track WithArtwork(string? artworkPath) => new()
+    public Track WithArtwork(string? artworkPath) => Clone(artworkPath);
+
+    /// <summary>Returns a copy of this track reassigned to a different album grouping. Used to collapse a
+    /// compilation's per-artist albums into one "Various Artists" album without touching the track's identity
+    /// or its own artist tag.</summary>
+    public Track WithAlbumGrouping(string albumArtist, string albumKey, string artistKey) =>
+        Clone(ArtworkPath, albumArtist, albumKey, artistKey);
+
+    private Track Clone(string? artworkPath, string? albumArtist = null, string? albumKey = null,
+        string? artistKey = null) => new()
     {
         Id = Id,
         Source = Source,
         Title = Title,
         Artist = Artist,
-        AlbumArtist = AlbumArtist,
+        AlbumArtist = albumArtist ?? AlbumArtist,
         Album = Album,
         Composer = Composer,
         Genres = Genres,
@@ -104,8 +117,9 @@ public sealed class Track
         Extension = Extension,
         FileSizeBytes = FileSizeBytes,
         ArtworkPath = artworkPath,
-        AlbumKey = AlbumKey,
-        ArtistKey = ArtistKey,
+        IsCompilation = IsCompilation,
+        AlbumKey = albumKey ?? AlbumKey,
+        ArtistKey = artistKey ?? ArtistKey,
         Directory = Directory,
         DateAdded = DateAdded,
         FileModified = FileModified

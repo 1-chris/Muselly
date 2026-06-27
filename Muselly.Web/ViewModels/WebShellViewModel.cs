@@ -112,7 +112,7 @@ public sealed partial class WebShellViewModel : ViewModelBase
         var resp = await _client.ShareLoginAsync(token);
         if (resp is not { Success: true }) return false;
 
-        _session.SignIn(resp.SessionToken, resp.Role);
+        _session.SignIn(resp.SessionToken, resp.Role, "guest");
         await _loader.RefreshAsync();
         _pendingRoute = ShareRoute(resp);
         ApplyPendingRoute();

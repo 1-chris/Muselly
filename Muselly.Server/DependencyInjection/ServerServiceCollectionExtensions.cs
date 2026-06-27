@@ -16,11 +16,20 @@ public static class ServerServiceCollectionExtensions
     {
         // The transport-agnostic engine: shared by the TLS host and the HTTP web host.
         services.AddSingleton<IShareService, Auth.ShareService>();
+
+        // The account store is an independent singleton so IUserService (Core) can depend on it without
+        // pulling in the ServerEngine (which would create a construction cycle: Engine -> UserService ->
+        // UserStore -> Engine).
+        services.AddSingleton<Auth.UserStore>();
+        services.AddSingleton<IServerUserStore>(sp => sp.GetRequiredService<Auth.UserStore>());
+
+        // Per-user favourites/history; the built-in user routes to the host's own services.
+        services.AddSingleton<IUserDataStore, Auth.ServerUserDataStore>();
+
         services.AddSingleton<ServerEngine>();
         services.AddSingleton<MusellyApiService>();
 
         services.AddSingleton<IServerHost, MusellyServerHost>();
-        services.AddSingleton<IServerUserStore>(sp => sp.GetRequiredService<ServerEngine>().Users);
         services.AddSingleton<IRemoteServerManager, RemoteServerManager>();
 
         // Override the local-only resolver so playback can stream remote tracks.

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Avalonia.Controls;
@@ -7,22 +6,18 @@ using Avalonia.Controls;
 namespace Muselly.App.Platform;
 
 /// <summary>
-/// macOS-only AppKit interop that keeps the native window controls (the red/yellow/green "traffic
-/// lights") visible while the window is in native fullscreen.
+/// macOS-only AppKit interop for the window's native traffic-light buttons.
 ///
-/// In native fullscreen macOS parks the title bar — and the buttons with it — in an auto-hiding
-/// overlay that only drops down when the pointer touches the top edge. The buttons are never hidden
-/// (they stay in the <c>NSTitlebarContainerView</c>), it's that container which slides away. Neither
-/// a title-bar accessory (<c>fullScreenMinHeight</c>) nor the fullscreen presentation options keep it
-/// pinned under Avalonia's window setup, and a toolbar pins it but pushes the client area down,
-/// hiding the app's own title strip.
+/// In native fullscreen macOS parks the title bar (and its buttons) in an auto-hiding overlay that only
+/// drops down when the pointer touches the top edge. Trying to move the real <c>standardWindowButton</c>s
+/// into the content view to keep them visible is a losing battle: AppKit owns their layout and re-homes
+/// them on every title-bar event (activation, Space switch, hover-reveal), repeatedly flinging them to the
+/// wrong corner.
 ///
-/// So instead we move the three standard window buttons out of the auto-hiding title bar and into the
-/// window's persistent content view, pinned to the top-left — exactly how JetBrains' IDEs keep their
-/// traffic lights "in the window" in fullscreen. On leaving fullscreen we hand them back to the title
-/// bar, where AppKit manages and repositions them again.
-///
-/// We only send well-known selectors to standard AppKit objects, and never on a non-macOS platform.
+/// So instead, in fullscreen we simply <b>hide</b> the native buttons and let the app draw its own
+/// traffic-light controls in its title strip (which it fully controls and which never move). On leaving
+/// fullscreen we show the native buttons again. We only send well-known selectors to standard AppKit
+/// objects, and never on a non-macOS platform.
 /// </summary>
 [SupportedOSPlatform("macos")]
 internal static class MacTitleBar
@@ -39,69 +34,61 @@ internal static class MacTitleBar
     private static extern IntPtr MsgSend_Long_Ret(IntPtr receiver, IntPtr selector, long arg1);
 
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern void MsgSend_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg1);
+    private static extern void MsgSend_Double(IntPtr receiver, IntPtr selector, double arg1);
 
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern void MsgSend_Double(IntPtr receiver, IntPtr selector, double arg1);
+    private static extern void MsgSend_Long(IntPtr receiver, IntPtr selector, long arg1);
 
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
     private static extern void MsgSend_ULong(IntPtr receiver, IntPtr selector, ulong arg1);
 
     [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool MsgSend_Bool(IntPtr receiver, IntPtr selector);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct CGRect { public double X, Y, W, H; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct CGPoint { public double X, Y; }
-
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern CGRect MsgSend_CGRect(IntPtr receiver, IntPtr selector);
-
-    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
-    private static extern void MsgSend_Point(IntPtr receiver, IntPtr selector, CGPoint origin);
-
-    // Standard traffic-light geometry inside the window's top-left (matches macOS defaults).
-    private const double ButtonLeft = 13.0; // x of the first (close) button
-    private const double ButtonGap = 20.0;  // x spacing between buttons
-    private const double ButtonTop = 6.0;   // distance from the window's top edge (matches the native
-                                            // windowed offset, so the lights line up with the app's title strip)
-
-    // NSView autoresizing-mask bits — keep the pinned buttons glued to the top-left on any resize.
-    private const ulong NSViewMaxXMargin = 1UL << 2; // flexible right margin  -> pinned left
-    private const ulong NSViewMinYMargin = 1UL << 3; // flexible bottom margin -> pinned top (unflipped view)
-    private const ulong NSViewMaxYMargin = 1UL << 5; // flexible top margin    -> pinned top (flipped view)
+    private static extern void MsgSend_Bool(IntPtr receiver, IntPtr selector, [MarshalAs(UnmanagedType.I1)] bool arg1);
 
     private const long NSWindowStyleMaskFullScreen = 1L << 14;
-
-    // The title-bar superview the buttons came from, per window, so we can hand them back on exit.
-    private static readonly Dictionary<IntPtr, IntPtr> _originalButtonSuper = new();
+    private const long NSWindowStyleMaskFullSizeContentView = 1L << 15;
+    private const long NSWindowTitleHidden = 1; // NSWindowTitleVisibility.hidden
 
     /// <summary>
-    /// Moves the traffic lights into the content view (pinned top-left) when entering fullscreen, and
-    /// back to the title bar when leaving. Safe on any platform; a no-op off macOS or before the
-    /// native handle exists.
+    /// Hides or shows the three native window buttons (close/minimise/zoom) by fading their alpha — NOT by
+    /// <c>setHidden:</c>, which removes them from the title-bar layout and (with
+    /// <c>ExtendClientAreaToDecorationsHint</c>) corrupts the window's content scaling in fullscreen. Alpha
+    /// keeps them in place but invisible. Safe on any platform; a no-op off macOS or before the handle exists.
     /// </summary>
-    public static void SetFullScreen(Window window, bool fullScreen)
+    public static void SetNativeButtonsHidden(Window window, bool hidden)
     {
         var nsWindow = NsWindow(window);
         if (nsWindow == IntPtr.Zero) return;
-        if (fullScreen) PinButtonsToContent(nsWindow);
-        else RestoreButtonsToTitleBar(nsWindow);
+
+        var setAlpha = Sel("setAlphaValue:");
+        var standardWindowButton = Sel("standardWindowButton:");
+        for (long i = 0; i <= 2; i++)
+        {
+            var btn = MsgSend_Long_Ret(nsWindow, standardWindowButton, i);
+            if (btn != IntPtr.Zero)
+                MsgSend_Double(btn, setAlpha, hidden ? 0.0 : 1.0);
+        }
     }
 
     /// <summary>
-    /// Re-asserts the pinned buttons once the fullscreen-enter animation settles — AppKit fades them
-    /// to alpha 0 and re-homes them into the (auto-hiding) title bar across the transition.
+    /// Re-asserts the "extended client area" title-bar configuration (transparent title bar, hidden title,
+    /// full-size content view) that Avalonia applies for <c>ExtendClientAreaToDecorationsHint</c>. macOS
+    /// resets these when leaving fullscreen, which makes the real native title bar reappear in place of the
+    /// app's custom strip — so we restore them. No-op while still in fullscreen, off macOS, or before the
+    /// handle exists.
     /// </summary>
-    public static void RefreshButtons(Window window)
+    public static void ApplyExtendedClientArea(Window window)
     {
         var nsWindow = NsWindow(window);
         if (nsWindow == IntPtr.Zero) return;
-        if (((long)MsgSend(nsWindow, Sel("styleMask")) & NSWindowStyleMaskFullScreen) != 0)
-            PinButtonsToContent(nsWindow);
+
+        var mask = (long)MsgSend(nsWindow, Sel("styleMask"));
+        if ((mask & NSWindowStyleMaskFullScreen) != 0) return; // leave fullscreen's own title bar alone
+
+        MsgSend_Long(nsWindow, Sel("setTitleVisibility:"), NSWindowTitleHidden);
+        MsgSend_Bool(nsWindow, Sel("setTitlebarAppearsTransparent:"), true);
+        if ((mask & NSWindowStyleMaskFullSizeContentView) == 0)
+            MsgSend_ULong(nsWindow, Sel("setStyleMask:"), (ulong)(mask | NSWindowStyleMaskFullSizeContentView));
     }
 
     private static IntPtr NsWindow(Window window)
@@ -110,49 +97,5 @@ internal static class MacTitleBar
         // On Avalonia's macOS backend the top-level platform handle IS the NSWindow (its `AvnWindow`
         // subclass), not the content view — so we use it directly.
         return window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-    }
-
-    private static void PinButtonsToContent(IntPtr nsWindow)
-    {
-        var content = MsgSend(nsWindow, Sel("contentView"));
-        if (content == IntPtr.Zero) return;
-
-        var flipped = MsgSend_Bool(content, Sel("isFlipped"));
-        var contentH = MsgSend_CGRect(content, Sel("frame")).H;
-        var mask = NSViewMaxXMargin | (flipped ? NSViewMaxYMargin : NSViewMinYMargin);
-
-        for (long i = 0; i <= 2; i++)
-        {
-            var btn = MsgSend_Long_Ret(nsWindow, Sel("standardWindowButton:"), i);
-            if (btn == IntPtr.Zero) continue;
-
-            var super = MsgSend(btn, Sel("superview"));
-            if (super != content) // remember the title-bar parent once, then reparent into the content view
-            {
-                if (!_originalButtonSuper.ContainsKey(nsWindow) && super != IntPtr.Zero)
-                    _originalButtonSuper[nsWindow] = super;
-                MsgSend_IntPtr(content, Sel("addSubview:"), btn);
-            }
-
-            var h = MsgSend_CGRect(btn, Sel("frame")).H;
-            var y = flipped ? ButtonTop : contentH - ButtonTop - h;
-            MsgSend_Point(btn, Sel("setFrameOrigin:"), new CGPoint { X = ButtonLeft + i * ButtonGap, Y = y });
-            MsgSend_ULong(btn, Sel("setAutoresizingMask:"), mask);
-            MsgSend_Double(btn, Sel("setAlphaValue:"), 1.0);
-        }
-    }
-
-    private static void RestoreButtonsToTitleBar(IntPtr nsWindow)
-    {
-        if (!_originalButtonSuper.TryGetValue(nsWindow, out var titleBar) || titleBar == IntPtr.Zero)
-            return;
-
-        for (long i = 0; i <= 2; i++)
-        {
-            var btn = MsgSend_Long_Ret(nsWindow, Sel("standardWindowButton:"), i);
-            if (btn == IntPtr.Zero) continue;
-            MsgSend_ULong(btn, Sel("setAutoresizingMask:"), 0); // let AppKit position it in the title bar again
-            MsgSend_IntPtr(titleBar, Sel("addSubview:"), btn);
-        }
     }
 }

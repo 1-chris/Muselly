@@ -27,6 +27,10 @@
                             Content="{Binding TrackArtist}" Command="{Binding OpenArtistCommand}"
                             ToolTip.Tip="Go to artist"/>
                 </StackPanel>
+                <controls:IconButton Classes="flat" Icon="{StaticResource IconHeart}" IconSize="18"
+                                     Classes.active="{Binding IsCurrentFavorite}"
+                                     IsVisible="{Binding HasTrack}"
+                                     Command="{Binding ToggleFavoriteCommand}" ToolTip.Tip="Favourite this song"/>
             </StackPanel>
 
             <!-- Transport + scrobbler -->

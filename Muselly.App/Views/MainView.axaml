@@ -79,6 +79,20 @@
                         </ListBoxItem>
                         <ListBoxItem>
                             <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconHeart}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Favourites" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                <Path Data="{StaticResource IconArtist}" Width="22" Height="22" Stretch="Uniform"
+                                      Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Users" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem>
+                            <StackPanel HorizontalAlignment="Center" Spacing="4">
                                 <Path Data="{StaticResource IconConnect}" Width="22" Height="22" Stretch="Uniform"
                                       Fill="{StaticResource CatppuccinSubtext0}" HorizontalAlignment="Center"/>
                                 <TextBlock Text="Connect" FontSize="11" HorizontalAlignment="Center"/>

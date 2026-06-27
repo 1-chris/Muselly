@@ -12,6 +12,14 @@ public static class MessageType
     public const string GetLyrics = "get-lyrics";
     public const string StreamTrack = "stream-track";
 
+    // Users / profiles / per-user data
+    public const string ListUserProfiles = "users-list";
+    public const string GetUserProfile = "user-get";
+    public const string UpdateUserProfile = "user-update";
+    public const string GetFavorites = "user-favorites";
+    public const string ToggleFavorite = "user-toggle-favorite";
+    public const string GetHistory = "user-history";
+
     // Admin
     public const string AddFolder = "admin-add-folder";
     public const string RemoveFolder = "admin-remove-folder";

@@ -26,9 +26,12 @@ public interface INavigationService
     void ShowLibrary();
     void ShowLibraryTab(int tabIndex);
     void ShowPlaylists();
+    void ShowFavorites();
+    void ShowUsers();
     void ShowConnect();
     void ShowSettings();
     void ShowNowPlaying();
+    void ShowUserProfile(string username);
     void OpenAlbum(string albumKey);
     void OpenArtist(string artistKey);
 
@@ -49,18 +52,20 @@ public sealed class NavigationService : INavigationService
     private readonly PlaybackCoordinator _coordinator;
     private readonly IQueueService _queue;
     private readonly IPlaylistService _playlists;
+    private readonly IFavoritesService _favorites;
     private readonly Stack<NavEntry> _back = new();
     private readonly Stack<NavEntry> _forward = new();
     private NavEntry? _current;
 
     public NavigationService(IServiceProvider sp, ILibraryService library, PlaybackCoordinator coordinator,
-        IQueueService queue, IPlaylistService playlists)
+        IQueueService queue, IPlaylistService playlists, IFavoritesService favorites)
     {
         _sp = sp;
         _library = library;
         _coordinator = coordinator;
         _queue = queue;
         _playlists = playlists;
+        _favorites = favorites;
     }
 
     public object? Current => _current?.Page;
@@ -82,15 +87,24 @@ public sealed class NavigationService : INavigationService
     }
 
     public void ShowPlaylists() => Navigate(new NavEntry(_sp.GetRequiredService<PlaylistsViewModel>(), -1, "playlists"));
+    public void ShowFavorites() => Navigate(new NavEntry(_sp.GetRequiredService<FavoritesViewModel>(), -1, "favorites"));
+    public void ShowUsers() => Navigate(new NavEntry(_sp.GetRequiredService<UsersViewModel>(), -1, "users"));
     public void ShowConnect() => Navigate(new NavEntry(_sp.GetRequiredService<ConnectViewModel>(), -1, "connect"));
     public void ShowSettings() => Navigate(new NavEntry(_sp.GetRequiredService<SettingsViewModel>(), -1, "settings"));
     public void ShowNowPlaying() => Navigate(new NavEntry(_sp.GetRequiredService<NowPlayingViewModel>(), -1, "nowplaying"));
+
+    public void ShowUserProfile(string username)
+    {
+        var vm = _sp.GetRequiredService<UserProfileViewModel>();
+        vm.Load(username);
+        Navigate(new NavEntry(vm, -1, "user/" + System.Uri.EscapeDataString(username)));
+    }
 
     public void OpenAlbum(string albumKey)
     {
         var album = _library.FindAlbum(albumKey);
         if (album is null) return;
-        Navigate(new NavEntry(new AlbumDetailViewModel(album, _coordinator, _queue, _playlists, GoBack, OpenArtist),
+        Navigate(new NavEntry(new AlbumDetailViewModel(album, _coordinator, _queue, _playlists, _favorites, GoBack, OpenArtist),
             -1, "album/" + albumKey));
     }
 
@@ -100,7 +114,7 @@ public sealed class NavigationService : INavigationService
         if (artist is null) return;
         var artistInfo = _sp.GetRequiredService<Muselly.Core.Services.Web.IArtistInfoService>();
         var settings = _sp.GetRequiredService<ISettingsService>();
-        Navigate(new NavEntry(new ArtistDetailViewModel(artist, _coordinator, _queue, artistInfo,
+        Navigate(new NavEntry(new ArtistDetailViewModel(artist, _coordinator, _queue, artistInfo, _favorites,
             settings.Current.AutomaticArtistBiography, a => OpenAlbum(a.Key), GoBack), -1, "artist/" + artistKey));
     }
 
@@ -116,6 +130,7 @@ public sealed class NavigationService : INavigationService
             var key = System.Uri.UnescapeDataString(route[(slash + 1)..]);
             if (kind == "album") OpenAlbum(key);
             else if (kind == "artist") OpenArtist(key);
+            else if (kind == "user") ShowUserProfile(key);
             else ShowLibraryTab(0);
             return;
         }
@@ -127,6 +142,8 @@ public sealed class NavigationService : INavigationService
             case "songs": ShowLibraryTab(2); break;
             case "folders": ShowLibraryTab(3); break;
             case "playlists": ShowPlaylists(); break;
+            case "favorites": ShowFavorites(); break;
+            case "users": ShowUsers(); break;
             case "connect": ShowConnect(); break;
             case "settings": ShowSettings(); break;
             case "nowplaying": ShowNowPlaying(); break;

@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Muselly.App.ViewModels"
+             xmlns:controls="using:Muselly.App.Controls"
+             xmlns:models="using:Muselly.Core.Models"
+             mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="700"
+             x:Class="Muselly.App.Views.FavoritesView"
+             x:DataType="vm:FavoritesViewModel">
+
+    <Grid Margin="24,12,24,12">
+        <StackPanel IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Spacing="14" MaxWidth="420">
+            <Path Data="{StaticResource IconHeart}" Fill="{StaticResource CatppuccinOverlay0}"
+                  Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Center"/>
+            <TextBlock Text="No favourites yet" Classes="h2" HorizontalAlignment="Center"/>
+            <TextBlock HorizontalAlignment="Center" TextAlignment="Center" Classes="subtle"
+                       Text="Tap the heart on any album, artist or song to add it here."/>
+        </StackPanel>
+
+        <ScrollViewer IsVisible="{Binding !IsEmpty}">
+            <StackPanel Spacing="18">
+
+                <StackPanel Spacing="10" IsVisible="{Binding HasAlbums}">
+                    <TextBlock Text="Albums" Classes="h2"/>
+                    <ItemsControl ItemsSource="{Binding Albums}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:Album">
+                                <Button Classes="ghost" Padding="8" CornerRadius="12"
+                                        Command="{Binding DataContext.OpenAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Width="160" Spacing="8">
+                                        <controls:AlbumArt Width="160" Height="160" Source="{Binding ArtworkPath}"/>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                        <TextBlock Text="{Binding AlbumArtist}" FontSize="12" Classes="subtle"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="10" IsVisible="{Binding HasArtists}">
+                    <TextBlock Text="Artists" Classes="h2"/>
+                    <ItemsControl ItemsSource="{Binding Artists}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:Artist">
+                                <Button Classes="ghost" Padding="8" CornerRadius="12"
+                                        Command="{Binding DataContext.OpenArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Width="150" Spacing="8">
+                                        <controls:AlbumArt Width="150" Height="150" CornerRadius="75" Source="{Binding ArtworkPath}"/>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                                   TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource CatppuccinText}"/>
+                                        <TextBlock FontSize="12" Classes="subtle" TextAlignment="Center"
+                                                   Text="{Binding TrackCount, StringFormat='{}{0} tracks'}"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="10" IsVisible="{Binding HasSongs}">
+                    <TextBlock Text="Songs" Classes="h2"/>
+                    <ItemsControl ItemsSource="{Binding Songs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:Track">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Height="50" Background="Transparent"
+                                      controls:DoubleTappedBehavior.Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                      controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                                    <controls:AlbumArt Grid.Column="0" Width="40" Height="40" CornerRadius="6" Source="{Binding ArtworkPath}"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0" Spacing="1">
+                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                        <TextBlock Text="{Binding DisplayArtist}" FontSize="12" Classes="subtle"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <controls:IconButton Grid.Column="2" Classes="small" Icon="{StaticResource IconPlay}"
+                                                         Command="{Binding DataContext.PlaySongCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                         CommandParameter="{Binding}"/>
+                                    <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconHeart}"
+                                                         Command="{Binding DataContext.UnfavoriteSongCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                         CommandParameter="{Binding}" ToolTip.Tip="Remove from favourites"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

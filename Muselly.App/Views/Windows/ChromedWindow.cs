@@ -36,6 +36,7 @@ public abstract class ChromedWindow : Window
     private const double MacTrafficLightInset = 64;
 
     private Border? _rootBorder;
+    private Control? _macWindowButtons;
 
     protected ChromedWindow()
     {
@@ -59,29 +60,14 @@ public abstract class ChromedWindow : Window
 
         _rootBorder = this.FindControl<Border>("RootBorder");
 
-        if (this.FindControl<Control>("MacWindowButtons") is { } mac)
-        {
-            if (UseMacChrome)
-            {
-                // macOS draws the real traffic lights; keep this panel only as a fixed-width spacer
-                // so the title content starts to the right of them.
-                mac.IsVisible = true;
-                if (mac is Panel macPanel)
-                    foreach (var child in macPanel.Children)
-                        child.IsVisible = false;
-                mac.Width = MacTrafficLightInset;
-            }
-            else
-            {
-                mac.IsVisible = false;
-            }
-        }
+        _macWindowButtons = this.FindControl<Control>("MacWindowButtons");
+        if (_macWindowButtons is { } mac && !UseMacChrome)
+            mac.IsVisible = false;
 
-        // On macOS, keep the native traffic lights visible in fullscreen (they otherwise auto-hide).
-        // Guard with OperatingSystem.IsMacOS() directly (not UseMacChrome) so the platform-compatibility
-        // analyzer recognises the macOS-only MacTitleBar calls as guarded.
-        if (OperatingSystem.IsMacOS())
-            MacTitleBar.SetFullScreen(this, WindowState == WindowState.FullScreen);
+        // macOS window-control handling (see UpdateMacWindowControls): native lights when windowed, our own
+        // when fullscreen. Guarded with OperatingSystem.IsMacOS() so the analyzer sees the interop as safe.
+        if (UseMacChrome)
+            UpdateMacWindowControls();
 
         if (this.FindControl<Control>("StandardWindowButtons") is { } standard)
             standard.IsVisible = !UseMacChrome;
@@ -100,25 +86,53 @@ public abstract class ChromedWindow : Window
         if (change.Property == WindowStateProperty)
         {
             UpdateMaximizedChrome();
-            if (OperatingSystem.IsMacOS())
+            if (UseMacChrome)
             {
-                var fullScreen = WindowState == WindowState.FullScreen;
-                MacTitleBar.SetFullScreen(this, fullScreen);
-                // The state change fires as the fullscreen animation *starts*, so the pin above runs
-                // against a mid-transition window. Re-assert at a few staggered points so the final
-                // placement is always computed on a fully settled window, whatever its duration —
-                // RefreshButtons is idempotent and no-ops if we're no longer fullscreen.
-                if (fullScreen)
-                    foreach (var seconds in new[] { 0.3, 0.8, 1.5 })
-                        // The macOS guard is the enclosing IsMacOS() block, but it sits outside this
-                        // deferred lambda so the analyzer can't see it; RefreshButtons also no-ops off
-                        // macOS internally, so the call is safe.
-#pragma warning disable CA1416
-                        Avalonia.Threading.DispatcherTimer.RunOnce(
-                            () => MacTitleBar.RefreshButtons(this), TimeSpan.FromSeconds(seconds));
-#pragma warning restore CA1416
+                UpdateMacWindowControls();
+                if (OperatingSystem.IsMacOS() && WindowState != WindowState.FullScreen)
+                    ReassertExtendedClientArea();
             }
         }
+    }
+
+    private void ReassertExtendedClientArea()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        // macOS restores the standard title bar at the *end* of the exit-fullscreen animation, so a single
+        // immediate call gets overwritten. Re-assert our transparent/extended title bar immediately and a
+        // couple of times after the animation settles. These set the same stable state, so there's no flicker.
+        MacTitleBar.ApplyExtendedClientArea(this);
+#pragma warning disable CA1416 // guarded by the IsMacOS() check above; the analyzer can't see it in the lambdas
+        foreach (var seconds in new[] { 0.35, 0.7, 1.2 })
+            Avalonia.Threading.DispatcherTimer.RunOnce(
+                () => MacTitleBar.ApplyExtendedClientArea(this), TimeSpan.FromSeconds(seconds));
+#pragma warning restore CA1416
+    }
+
+    /// <summary>
+    /// Swaps the macOS window controls between two modes:
+    ///   • Windowed/maximised — the real native traffic lights (drawn by macOS over the extended client
+    ///     area); our <c>MacWindowButtons</c> panel is just a fixed-width spacer so the title starts clear
+    ///     of them.
+    ///   • Fullscreen — the native lights are hidden (macOS would otherwise auto-hide them with the title
+    ///     bar, and fling them to the wrong corner on every title-bar event), and our own traffic-light
+    ///     buttons are shown in their place, where they stay put.
+    /// </summary>
+    private void UpdateMacWindowControls()
+    {
+        if (!UseMacChrome || _macWindowButtons is not { } mac) return;
+
+        var fullScreen = WindowState == WindowState.FullScreen;
+
+        mac.IsVisible = true;
+        if (mac is Panel panel)
+            foreach (var child in panel.Children)
+                child.IsVisible = fullScreen;            // our blobs are real buttons in fullscreen, hidden (spacer) otherwise
+        mac.Width = fullScreen ? double.NaN : MacTrafficLightInset;
+
+        if (OperatingSystem.IsMacOS())
+            MacTitleBar.SetNativeButtonsHidden(this, fullScreen);
     }
 
     private void UpdateMaximizedChrome()

@@ -35,7 +35,8 @@
             </StackPanel>
 
             <!-- Albums grid -->
-            <ScrollViewer IsVisible="{Binding IsAlbumsTab}" ScrollChanged="OnAlbumsScrollChanged">
+            <ScrollViewer IsVisible="{Binding IsAlbumsTab}" ScrollChanged="OnAlbumsScrollChanged"
+                          controls:ScrollMemory.Key="lib.albums">
                 <ItemsControl ItemsSource="{Binding Albums}" controls:DragDropBehavior.DragSource="Library">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -91,7 +92,8 @@
             </ScrollViewer>
 
             <!-- Artists grid -->
-            <ScrollViewer IsVisible="{Binding IsArtistsTab}" ScrollChanged="OnArtistsScrollChanged">
+            <ScrollViewer IsVisible="{Binding IsArtistsTab}" ScrollChanged="OnArtistsScrollChanged"
+                          controls:ScrollMemory.Key="lib.artists">
                 <ItemsControl ItemsSource="{Binding Artists}" controls:DragDropBehavior.DragSource="Library">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -107,6 +109,8 @@
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
                                                TextAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Foreground="{StaticResource CatppuccinText}"/>
+                                    <TextBlock FontSize="12" Classes="subtle" TextAlignment="Center"
+                                               Text="{Binding TrackCount, StringFormat='{}{0} tracks'}"/>
                                     <TextBlock FontSize="12" Classes="subtle" TextAlignment="Center"
                                                Text="{Binding AlbumCount, StringFormat='{}{0} albums'}"/>
                                 </StackPanel>
@@ -161,6 +165,7 @@
 
                 <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding Songs}"
                          controls:DragDropBehavior.DragSource="Library"
+                         controls:ScrollMemory.Key="lib.songs"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:Track">
@@ -248,6 +253,7 @@
                     </StackPanel>
                     <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding FolderTracks}"
                              controls:DragDropBehavior.DragSource="Library"
+                             controls:ScrollMemory.Key="lib.folders"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:Track">

@@ -17,12 +17,15 @@ public sealed class PlaybackCoordinator
     private readonly IQueueService _queue;
     private readonly IPlaybackService _playback;
     private readonly ISettingsService _settings;
+    private readonly IListeningHistoryService _history;
 
-    public PlaybackCoordinator(IQueueService queue, IPlaybackService playback, ISettingsService settings)
+    public PlaybackCoordinator(IQueueService queue, IPlaybackService playback, ISettingsService settings,
+        IListeningHistoryService history)
     {
         _queue = queue;
         _playback = playback;
         _settings = settings;
+        _history = history;
 
         // Restore persisted transport state.
         _queue.RepeatMode = settings.Current.RepeatMode;
@@ -54,10 +57,27 @@ public sealed class PlaybackCoordinator
         PlayCurrent();
     }
 
+    /// <summary>
+    /// Restores a saved session: repopulates the queue, selects <paramref name="index"/> and loads that
+    /// track paused at <paramref name="position"/> (no audio starts until the user presses play).
+    /// </summary>
+    public void RestoreSession(IReadOnlyList<Track> tracks, int index, TimeSpan position)
+    {
+        if (tracks.Count == 0) return;
+        _queue.PlayNow(tracks, index);
+        var current = _queue.Current;
+        if (current is not null) _playback.RestorePaused(current, position);
+        PrepareNext();
+    }
+
     public void PlayCurrent()
     {
         var current = _queue.Current;
-        if (current is not null) _playback.Play(current);
+        if (current is not null)
+        {
+            _playback.Play(current);
+            _history.Record(current);
+        }
         PrepareNext();
     }
 
@@ -81,7 +101,7 @@ public sealed class PlaybackCoordinator
     public void Next()
     {
         var next = _queue.MoveNext();
-        if (next is not null) _playback.Play(next);
+        if (next is not null) { _playback.Play(next); _history.Record(next); }
         else _playback.Stop();
         PrepareNext();
     }

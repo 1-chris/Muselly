@@ -55,6 +55,32 @@ public static class WebApi
                     : Results.File(path, "audio/ogg", enableRangeProcessing: true);
             })));
 
+        // --- Users / profiles / per-user data --------------------------------------------------------
+
+        app.MapGet("/api/users", (HttpContext ctx) =>
+            RequireAuth(ctx, api, session => Results.Json(api.ListUserProfiles(session))));
+
+        app.MapGet("/api/users/profile", (HttpContext ctx) =>
+            RequireAuth(ctx, api, session =>
+            {
+                var profile = api.GetUserProfile(session, ctx.Request.Query["username"]!);
+                return profile is null ? Results.NotFound() : Results.Json(profile);
+            }));
+
+        // A signed-in (non-guest) user edits their own profile (admins may edit anyone — enforced in the API).
+        app.MapPost("/api/users/profile", (HttpContext ctx, UpdateProfileRequest req) =>
+            RequireUser(ctx, api, session =>
+                api.UpdateUserProfile(session, req) ? Results.Ok() : Results.Forbid()));
+
+        app.MapGet("/api/users/favorites", (HttpContext ctx) =>
+            RequireAuth(ctx, api, session => Results.Json(api.GetFavorites(session, ctx.Request.Query["username"]!))));
+
+        app.MapPost("/api/users/favorites", (HttpContext ctx, ToggleFavoriteRequest req) =>
+            RequireUser(ctx, api, session => Results.Json(api.ToggleFavorite(session, req))));
+
+        app.MapGet("/api/users/history", (HttpContext ctx) =>
+            RequireAuth(ctx, api, session => Results.Json(api.GetHistory(session, ctx.Request.Query["username"]!))));
+
         // --- Admin -----------------------------------------------------------------------------------
 
         app.MapGet("/api/admin/settings", (HttpContext ctx) =>

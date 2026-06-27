@@ -41,6 +41,29 @@ public static class StoragePaths
 
     public static string PlaylistsFile() => Path.Combine(ConfigDirectory(), "playlists.json");
 
+    /// <summary>Persisted play queue + current track/position, so a session resumes where it left off.</summary>
+    public static string SessionStateFile() => Path.Combine(ConfigDirectory(), "session.json");
+
+    /// <summary>Persisted favourited songs/albums/artists for the local user.</summary>
+    public static string FavoritesFile() => Path.Combine(ConfigDirectory(), "favorites.json");
+
+    /// <summary>Persisted user profiles (built-in local user + privacy settings, bios, pictures).</summary>
+    public static string UserProfilesFile() => Path.Combine(ConfigDirectory(), "user-profiles.json");
+
+    /// <summary>Persisted local listening history (track id + timestamp).</summary>
+    public static string ListeningHistoryFile() => Path.Combine(ConfigDirectory(), "listening-history.json");
+
+    /// <summary>Per-remote-user server data (favourites + history), one file per account.</summary>
+    public static string UserDataFile(string username)
+    {
+        var dir = Path.Combine(ConfigDirectory(), "userdata");
+        try { Directory.CreateDirectory(dir); }
+        catch { /* tolerated */ }
+        // Hash the username so arbitrary names map to a safe, stable filename.
+        var safe = Util.Identifiers.Hash(username.Trim().ToLowerInvariant());
+        return Path.Combine(dir, safe + ".json");
+    }
+
     public static string ArtworkCacheDirectory()
     {
         var dir = Path.Combine(ConfigDirectory(), "artwork");

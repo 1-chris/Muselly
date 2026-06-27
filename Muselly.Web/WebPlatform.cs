@@ -44,6 +44,11 @@ public sealed class WebPlatform : IPlatformServices
         services.AddSingleton<ILyricsService, WebLyricsService>();
         services.AddSingleton<IArtistInfoService, WebArtistInfoService>();
 
+        // Favourites and the user directory/profiles come from the host's per-user API (the signed-in
+        // account's server-side data), overriding the browser-local Core defaults.
+        services.AddSingleton<IFavoritesService, WebFavoritesService>();
+        services.AddSingleton<IUserService, WebUserService>();
+
         services.AddSingleton<LoginViewModel>();
         services.AddSingleton<AdminViewModel>();
         services.AddSingleton<WebShellViewModel>();

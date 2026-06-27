@@ -1,6 +1,8 @@
+using System.Linq;
 using System.Net.Security;
 using Microsoft.Extensions.Logging;
 using Muselly.Core.Models;
+using Muselly.Core.Services.Interfaces;
 using Muselly.Core.Util;
 using Muselly.Server.Auth;
 using Muselly.Server.Protocol;
@@ -67,6 +69,13 @@ public sealed class ServerSession
                 case MessageType.GetArtistBio: await RequireAuth(env, _ => HandleGetBioAsync(env)); break;
                 case MessageType.GetLyrics: await RequireAuth(env, _ => HandleGetLyricsAsync(env)); break;
                 case MessageType.StreamTrack: await RequireAuth(env, _ => HandleStreamTrackAsync(env)); break;
+
+                case MessageType.ListUserProfiles: await RequireAuth(env, s => HandleListUserProfilesAsync(env, s)); break;
+                case MessageType.GetUserProfile: await RequireAuth(env, s => HandleGetUserProfileAsync(env, s)); break;
+                case MessageType.UpdateUserProfile: await RequireUser(env, s => HandleUpdateUserProfileAsync(env, s)); break;
+                case MessageType.GetFavorites: await RequireAuth(env, s => HandleGetFavoritesAsync(env, s)); break;
+                case MessageType.ToggleFavorite: await RequireUser(env, s => HandleToggleFavoriteAsync(env, s)); break;
+                case MessageType.GetHistory: await RequireAuth(env, s => HandleGetHistoryAsync(env, s)); break;
 
                 case MessageType.AddFolder: await RequireAdmin(env, () => HandleAddFolderAsync(env)); break;
                 case MessageType.RemoveFolder: await RequireAdmin(env, () => HandleRemoveFolderAsync(env)); break;
@@ -191,6 +200,112 @@ public sealed class ServerSession
         if (_session is null) { await SendErrorAsync(env.Id, "Not authenticated."); return; }
         if (_session.Role != UserRole.Admin) { await SendErrorAsync(env.Id, "Administrator role required."); return; }
         await handler();
+    }
+
+    /// <summary>Requires a signed-in (non-guest) user.</summary>
+    private async Task RequireUser(Envelope env, Func<Session, Task> handler)
+    {
+        if (_session is null) { await SendErrorAsync(env.Id, "Not authenticated."); return; }
+        if (_session.Role == UserRole.Guest) { await SendErrorAsync(env.Id, "Sign-in required."); return; }
+        await handler(_session);
+    }
+
+    // --- Users / profiles / per-user data ------------------------------------------------------------
+
+    private Task HandleListUserProfilesAsync(Envelope env, Session session)
+    {
+        var viewer = ViewerOf(session);
+        var resp = new UserProfileListResponse();
+        foreach (var u in _ctx.UserService.VisibleTo(viewer)) resp.Users.Add(ToProfileDto(viewer, u));
+        return SendResponseAsync(env.Id, MessageType.ListUserProfiles, resp);
+    }
+
+    private Task HandleGetUserProfileAsync(Envelope env, Session session)
+    {
+        var req = env.GetPayload<UserRequest>() ?? new UserRequest();
+        var viewer = ViewerOf(session);
+        var target = _ctx.UserService.Get(req.Username);
+        if (target is null || !_ctx.UserService.CanView(viewer, target, ProfileFacet.Profile))
+            return SendErrorAsync(env.Id, "Not found.");
+        return SendResponseAsync(env.Id, MessageType.GetUserProfile, ToProfileDto(viewer, target));
+    }
+
+    private Task HandleUpdateUserProfileAsync(Envelope env, Session session)
+    {
+        var req = env.GetPayload<UpdateProfileRequest>() ?? new UpdateProfileRequest();
+        var viewer = ViewerOf(session);
+        var updated = (_ctx.UserService.Get(req.Username) ?? new UserProfile { Username = req.Username }).Clone();
+        updated.Bio = string.IsNullOrWhiteSpace(req.Bio) ? null : req.Bio.Trim();
+        updated.ProfileVisibility = req.ProfileVisibility;
+        updated.FavoritesVisibility = req.FavoritesVisibility;
+        updated.NowPlayingVisibility = req.NowPlayingVisibility;
+        updated.ListeningHistoryVisibility = req.ListeningHistoryVisibility;
+        var ok = _ctx.UserService.UpdateProfile(viewer.Username, updated);
+        return SendResponseAsync(env.Id, MessageType.UpdateUserProfile,
+            new OkResponse { Ok = ok, Error = ok ? null : "Not permitted." });
+    }
+
+    private Task HandleGetFavoritesAsync(Envelope env, Session session)
+    {
+        var req = env.GetPayload<UserRequest>() ?? new UserRequest();
+        var viewer = ViewerOf(session);
+        var target = _ctx.UserService.Get(req.Username) ?? new UserProfile { Username = req.Username };
+        var resp = new FavoritesResponse();
+        if (_ctx.UserService.CanView(viewer, target, ProfileFacet.Favorites))
+            resp.Favorites = _ctx.UserData.GetFavorites(req.Username)
+                .Select(f => new FavoriteDto { Kind = f.Kind, Key = f.Key, AddedAt = f.AddedAt }).ToList();
+        return SendResponseAsync(env.Id, MessageType.GetFavorites, resp);
+    }
+
+    private Task HandleToggleFavoriteAsync(Envelope env, Session session)
+    {
+        var req = env.GetPayload<ToggleFavoriteRequest>() ?? new ToggleFavoriteRequest();
+        var viewer = ViewerOf(session);
+        var owner = string.IsNullOrEmpty(req.Username) ? viewer.Username : req.Username;
+        var favorited = false;
+        if (_ctx.UserService.CanEdit(viewer, owner) && !string.IsNullOrEmpty(req.Key))
+        {
+            if (req.Favorite is { } on) { _ctx.UserData.SetFavorite(owner, req.Kind, req.Key, on); favorited = on; }
+            else favorited = _ctx.UserData.ToggleFavorite(owner, req.Kind, req.Key);
+        }
+        return SendResponseAsync(env.Id, MessageType.ToggleFavorite, new ToggleFavoriteResponse { Favorited = favorited });
+    }
+
+    private Task HandleGetHistoryAsync(Envelope env, Session session)
+    {
+        var req = env.GetPayload<UserRequest>() ?? new UserRequest();
+        var viewer = ViewerOf(session);
+        var target = _ctx.UserService.Get(req.Username) ?? new UserProfile { Username = req.Username };
+        var resp = new HistoryResponse();
+        if (_ctx.UserService.CanView(viewer, target, ProfileFacet.ListeningHistory))
+            resp.Entries = _ctx.UserData.GetHistory(req.Username)
+                .Select(e => new HistoryEntryDto { TrackId = e.TrackId, PlayedAt = e.PlayedAt }).ToList();
+        return SendResponseAsync(env.Id, MessageType.GetHistory, resp);
+    }
+
+    private UserProfile ViewerOf(Session session) =>
+        _ctx.UserService.Get(session.Username) ?? new UserProfile { Username = session.Username };
+
+    private UserProfileDto ToProfileDto(UserProfile viewer, UserProfile u)
+    {
+        var isAdmin = u.IsBuiltIn || _ctx.Users.Find(u.Username)?.Role == UserRole.Admin;
+        return new UserProfileDto
+        {
+            Username = u.Username,
+            IsBuiltIn = u.IsBuiltIn,
+            IsAdmin = isAdmin,
+            Bio = u.Bio,
+            HasPicture = !string.IsNullOrEmpty(u.ProfilePicturePath),
+            ProfileVisibility = u.ProfileVisibility,
+            FavoritesVisibility = u.FavoritesVisibility,
+            NowPlayingVisibility = u.NowPlayingVisibility,
+            ListeningHistoryVisibility = u.ListeningHistoryVisibility,
+            RemoteLoginEnabled = u.RemoteLoginEnabled,
+            CanEdit = _ctx.UserService.CanEdit(viewer, u.Username),
+            CanViewFavorites = _ctx.UserService.CanView(viewer, u, ProfileFacet.Favorites),
+            CanViewNowPlaying = _ctx.UserService.CanView(viewer, u, ProfileFacet.NowPlaying),
+            CanViewHistory = _ctx.UserService.CanView(viewer, u, ProfileFacet.ListeningHistory)
+        };
     }
 
     // --- Library -------------------------------------------------------------------------------------

@@ -56,6 +56,7 @@ namespace Muselly.App
             services.AddSingleton<Services.IJapaneseTextService, Services.JapaneseTextService>();
             services.AddSingleton<Services.PlaybackCoordinator>();
             services.AddSingleton<Services.INavigationService, Services.NavigationService>();
+            services.AddSingleton<Services.ISessionStateService, Services.SessionStateService>();
 
             // Server mode: shared no-op defaults so the Connect panel resolves on every head; the desktop
             // head overrides these (and the audio source resolver) with the real Muselly.Server services.
@@ -69,6 +70,15 @@ namespace Muselly.App
             services.AddSingleton<MainViewModel>();
             services.AddSingleton<LibraryViewModel>();
             services.AddSingleton<PlaylistsViewModel>();
+            services.AddSingleton<FavoritesViewModel>();
+            services.AddSingleton<UsersViewModel>();
+            services.AddTransient<UserProfileViewModel>(sp => new UserProfileViewModel(
+                sp.GetRequiredService<IUserService>(),
+                sp.GetRequiredService<IFavoritesService>(),
+                sp.GetRequiredService<IListeningHistoryService>(),
+                sp.GetRequiredService<ILibraryService>(),
+                sp.GetRequiredService<IPlaybackService>(),
+                sp.GetService<IServerUserStore>()));
             services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<ConnectViewModel>();
             services.AddSingleton<PlayerBarViewModel>();
@@ -94,6 +104,9 @@ namespace Muselly.App
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.MainWindow = (Window)Platform!.CreateShell(ServiceProvider);
+                // Flush the play session (queue + current track/position) as the app closes.
+                desktop.ShutdownRequested += (_, _) =>
+                    ServiceProvider?.GetService<Services.ISessionStateService>()?.SaveNow();
                 Platform.OnStarted(ServiceProvider);
             }
             else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)

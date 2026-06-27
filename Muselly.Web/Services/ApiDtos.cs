@@ -100,3 +100,52 @@ public sealed class UserListClientDto
 {
     public List<UserClientDto> Users { get; set; } = new();
 }
+
+public sealed class UserProfileClientDto
+{
+    public string Username { get; set; } = string.Empty;
+    public bool IsBuiltIn { get; set; }
+    public bool IsAdmin { get; set; }
+    public string? Bio { get; set; }
+    public bool HasPicture { get; set; }
+    public PrivacyVisibility ProfileVisibility { get; set; }
+    public PrivacyVisibility FavoritesVisibility { get; set; }
+    public PrivacyVisibility NowPlayingVisibility { get; set; }
+    public PrivacyVisibility ListeningHistoryVisibility { get; set; }
+    public bool RemoteLoginEnabled { get; set; }
+    public bool CanEdit { get; set; }
+    public bool CanViewFavorites { get; set; }
+    public bool CanViewNowPlaying { get; set; }
+    public bool CanViewHistory { get; set; }
+}
+
+public sealed class UserProfileListClientDto
+{
+    public List<UserProfileClientDto> Users { get; set; } = new();
+}
+
+public sealed class FavoriteClientDto
+{
+    public FavoriteKind Kind { get; set; }
+    public string Key { get; set; } = string.Empty;
+}
+
+public sealed class FavoritesClientDto
+{
+    public List<FavoriteClientDto> Favorites { get; set; } = new();
+}
+
+public sealed class ToggleFavoriteClientDto
+{
+    public bool Favorited { get; set; }
+}
+
+public sealed class HistoryEntryClientDto
+{
+    public string TrackId { get; set; } = string.Empty;
+}
+
+public sealed class HistoryClientDto
+{
+    public List<HistoryEntryClientDto> Entries { get; set; } = new();
+}

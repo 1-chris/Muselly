@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Muselly.Core.Models;
 using Muselly.Core.Services.Interfaces;
@@ -24,10 +25,23 @@ public sealed class AtlMetadataReader : IMetadataReader
 
     public Track? Read(string absolutePath)
     {
+        // A normalization-sensitive filesystem can list a name in one Unicode form while the entry on disk is
+        // in another, so the enumerated path may not open verbatim; try the standard forms and use the one
+        // that exists for everything (id, source, playback). NOTE: this cannot rescue files on a macOS SMB
+        // mount whose names are NFD (decomposed) — macOS's SMB client sends a normalized name on open() that
+        // the server doesn't have, so the file is unopenable by any process; those are reported in the scan
+        // summary and the fix is server-side (e.g. convert the names to NFC with convmv).
+        var resolvedPath = ResolveReadablePath(absolutePath);
+        if (resolvedPath is null)
+        {
+            _logger.LogDebug("Skipping file that could not be opened (not found): {Path}", absolutePath);
+            return null;
+        }
+
         try
         {
-            var atl = new ATL.Track(absolutePath);
-            var fileInfo = new FileInfo(absolutePath);
+            var atl = new ATL.Track(resolvedPath);
+            var fileInfo = new FileInfo(resolvedPath);
 
             var albumArtist = FirstNonEmpty(atl.AlbumArtist, atl.Artist) ?? "Unknown Artist";
             var album = string.IsNullOrWhiteSpace(atl.Album) ? "Unknown Album" : atl.Album!;
@@ -38,9 +52,9 @@ public sealed class AtlMetadataReader : IMetadataReader
 
             return new Track
             {
-                Id = Identifiers.TrackId(absolutePath),
-                Source = absolutePath,
-                Title = FirstNonEmpty(atl.Title, Path.GetFileNameWithoutExtension(absolutePath)) ?? "Untitled",
+                Id = Identifiers.TrackId(resolvedPath),
+                Source = resolvedPath,
+                Title = FirstNonEmpty(atl.Title, Path.GetFileNameWithoutExtension(resolvedPath)) ?? "Untitled",
                 Artist = artist,
                 AlbumArtist = albumArtist,
                 Album = album,
@@ -60,19 +74,53 @@ public sealed class AtlMetadataReader : IMetadataReader
                 Extension = fileInfo.Extension.TrimStart('.').ToUpperInvariant(),
                 FileSizeBytes = fileInfo.Exists ? fileInfo.Length : 0,
                 ArtworkPath = artworkPath,
+                IsCompilation = ReadCompilationFlag(atl),
                 AlbumKey = albumKey,
                 ArtistKey = Identifiers.ArtistKey(albumArtist),
-                Directory = Path.GetDirectoryName(absolutePath) ?? string.Empty,
+                Directory = Path.GetDirectoryName(resolvedPath) ?? string.Empty,
                 FileModified = fileInfo.Exists ? fileInfo.LastWriteTimeUtc : DateTimeOffset.Now,
                 DateAdded = DateTimeOffset.Now
             };
         }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or IOException)
+        {
+            // Unopenable (e.g. an NFD-named file on a macOS SMB mount) — counted in the scan summary; keep
+            // the per-file detail at debug level so it doesn't flood the log.
+            _logger.LogDebug("Could not read {Path}: {Message}", resolvedPath, ex.Message);
+            return null;
+        }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to read metadata for {Path}", absolutePath);
+            _logger.LogWarning(ex, "Failed to read metadata for {Path}", resolvedPath);
             return null;
         }
     }
+
+    /// <summary>Returns a path that opens: the path as given, or the first Unicode normalization variant
+    /// (NFC/NFD/…) that exists — handling filename-form mismatches on normalization-sensitive volumes — or
+    /// null if none resolve.</summary>
+    private static string? ResolveReadablePath(string path)
+    {
+        if (File.Exists(path)) return path;
+
+        foreach (var form in NormalizationForms)
+        {
+            try
+            {
+                if (path.IsNormalized(form)) continue;
+                var candidate = path.Normalize(form);
+                if (File.Exists(candidate)) return candidate;
+            }
+            catch (ArgumentException)
+            {
+                // Path holds code points that are invalid for this normalization form — skip it.
+            }
+        }
+        return null;
+    }
+
+    private static readonly NormalizationForm[] NormalizationForms =
+        { NormalizationForm.FormC, NormalizationForm.FormD, NormalizationForm.FormKC, NormalizationForm.FormKD };
 
     private string? ExtractArtwork(ATL.Track atl, string albumKey)
     {
@@ -116,6 +164,37 @@ public sealed class AtlMetadataReader : IMetadataReader
         "image/bmp" => "bmp",
         _ => "jpg"
     };
+
+    // Compilation flag, spelled differently per container: MP4 'cpil', ID3v2 'TCMP', Vorbis/FLAC
+    // 'COMPILATION', WMA 'WM/IsCompilation'. ATL surfaces these raw in AdditionalFields, so match any of
+    // them case-insensitively and treat a truthy value as a compilation.
+    private static readonly string[] CompilationKeys = { "cpil", "tcmp", "compilation", "wm/iscompilation" };
+
+    private static bool ReadCompilationFlag(ATL.Track atl)
+    {
+        try
+        {
+            var fields = atl.AdditionalFields;
+            if (fields is null || fields.Count == 0) return false;
+            foreach (var kv in fields)
+            {
+                foreach (var key in CompilationKeys)
+                {
+                    if (!string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
+                    var v = kv.Value?.Trim();
+                    if (!string.IsNullOrEmpty(v) && v != "0" &&
+                        !string.Equals(v, "false", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(v, "no", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+        }
+        catch
+        {
+            // AdditionalFields access can throw on malformed tags; treat as "not a compilation".
+        }
+        return false;
+    }
 
     private static uint UIntOf(int? value) => value is int v && v > 0 ? (uint)v : 0u;
 

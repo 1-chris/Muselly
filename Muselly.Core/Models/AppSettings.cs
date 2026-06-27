@@ -14,6 +14,15 @@ public sealed class AppSettings
     /// <summary>Watch scanned folders for changes and rescan automatically.</summary>
     public bool WatchFolders { get; set; } = true;
 
+    /// <summary>Collapse multi-artist compilation albums (detected by the file's compilation tag, or by a
+    /// shared album title in one folder with differing artists) into a single "Various Artists" album.</summary>
+    public bool MergeCompilationAlbums { get; set; } = true;
+
+    /// <summary>Hide duplicate copies of the same song (same title/artist and near-equal duration) from the
+    /// Songs, Albums and Artists views, keeping only the highest-quality copy. Files on disk and the Folder
+    /// view are left untouched.</summary>
+    public bool DeduplicateTracks { get; set; } = true;
+
     public string ThemeName { get; set; } = "Catppuccin Mocha";
 
     public double FontScale { get; set; } = 1.0;

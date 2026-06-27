@@ -17,16 +17,20 @@ public sealed class WebSession
     public UserRole Role { get; private set; } = UserRole.Guest;
     public string ServerName { get; set; } = "Muselly";
 
+    /// <summary>The username this session signed in as ("guest" for guest sessions).</summary>
+    public string Username { get; private set; } = "guest";
+
     public bool IsAuthenticated => !string.IsNullOrEmpty(Token);
     public bool IsAdmin => IsAuthenticated && Role == UserRole.Admin;
 
     /// <summary>Raised when the authentication state changes (sign-in or sign-out).</summary>
     public event EventHandler? Changed;
 
-    public void SignIn(string token, UserRole role)
+    public void SignIn(string token, UserRole role, string username)
     {
         Token = token;
         Role = role;
+        Username = string.IsNullOrWhiteSpace(username) ? "guest" : username;
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -34,6 +38,7 @@ public sealed class WebSession
     {
         Token = null;
         Role = UserRole.Guest;
+        Username = "guest";
         Changed?.Invoke(this, EventArgs.Empty);
     }
 }

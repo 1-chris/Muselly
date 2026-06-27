@@ -24,9 +24,17 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
     private readonly IAudioOutput _output;
     private readonly IAudioEqualizer _equalizer;
     private readonly IAudioSourceResolver _sourceResolver;
-    private readonly int _deviceRate;
-    private readonly int _deviceChannels;
+    private int _deviceRate;
+    private int _deviceChannels;
     private readonly System.Timers.Timer _timer;
+
+    // Watchdog: the render callback bumps _renderTicks on every device pull. If playback is active but the
+    // count stops advancing, the output device has stalled (a known macOS hazard after sleep/wake or a
+    // default-device change) — we restart it to recover instead of leaving the user with silence.
+    private long _renderTicks;
+    private long _lastRenderTicksSeen;
+    private DateTime _lastRenderProgressUtc = DateTime.UtcNow;
+    private DateTime _watchdogSuppressUntil = DateTime.MinValue;
 
     private AudioSampleBuffer? _buffer;
     private double _playFrame;
@@ -96,6 +104,7 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
         _buffer = null;     // silence while (de)coding
         _playFrame = 0;
         _state = PlaybackState.Playing;
+        SyncPowerAssertion();
         StateChanged?.Invoke(this, EventArgs.Empty);
 
         // Use the pre-buffered decode if it's ready — instant, gapless start.
@@ -107,6 +116,44 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
         }
 
         Task.Run(() => DecodeAndStart(track, gen));
+    }
+
+    public void RestorePaused(Track track, TimeSpan position)
+    {
+        var gen = Interlocked.Increment(ref _generation);
+        Current = track;
+        Duration = track.Duration > TimeSpan.Zero ? track.Duration : TimeSpan.Zero;
+        Position = position < TimeSpan.Zero ? TimeSpan.Zero : position;
+        Interlocked.Exchange(ref _ended, 0);
+        Interlocked.Exchange(ref _seekTo, -1);
+        _buffer = null;
+        _playFrame = 0;
+        _state = PlaybackState.Paused;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+
+        var startSeconds = Math.Max(0, position.TotalSeconds);
+        Task.Run(() =>
+        {
+            try
+            {
+                var path = _sourceResolver.ResolveLocalPathAsync(track).GetAwaiter().GetResult();
+                var buffer = _decoder.Decode(path);
+                if (gen != Volatile.Read(ref _generation)) return; // superseded by a real Play
+
+                _ratio = (double)buffer.SampleRate / _deviceRate;
+                Duration = TimeSpan.FromSeconds((double)buffer.FrameCount / buffer.SampleRate);
+                var frame = startSeconds * buffer.SampleRate;
+                _playFrame = frame >= buffer.FrameCount ? 0 : frame;
+                _buffer = buffer; // stays silent until Resume because _state is Paused
+                Position = TimeSpan.FromSeconds(_playFrame / buffer.SampleRate);
+                StateChanged?.Invoke(this, EventArgs.Empty);
+                PositionChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to restore paused playback for {Source}", track.Source);
+            }
+        });
     }
 
     public void Prepare(Track track)
@@ -188,6 +235,7 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
     {
         if (_state != PlaybackState.Playing) return;
         _state = PlaybackState.Paused;
+        SyncPowerAssertion();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -195,6 +243,7 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
     {
         if (_state != PlaybackState.Paused) return;
         _state = PlaybackState.Playing;
+        SyncPowerAssertion();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -212,6 +261,7 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
         _buffer = null;
         _playFrame = 0;
         Position = TimeSpan.Zero;
+        SyncPowerAssertion();
         StateChanged?.Invoke(this, EventArgs.Empty);
         PositionChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -243,6 +293,9 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
 
     private void Render(Span<float> buffer)
     {
+        // Liveness heartbeat for the watchdog — cheap, lock-free, allowed on the RT thread.
+        Interlocked.Increment(ref _renderTicks);
+
         var dch = _deviceChannels;
         var buf = _buffer;
         if (dch <= 0 || _state != PlaybackState.Playing || buf is null)
@@ -314,13 +367,87 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
             PositionChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        WatchdogCheck();
+        SyncPowerAssertion();
+
         if (Interlocked.CompareExchange(ref _ended, 0, 1) == 1)
         {
             _state = PlaybackState.Stopped;
             if (Duration > TimeSpan.Zero) Position = Duration;
             StateChanged?.Invoke(this, EventArgs.Empty);
             TrackEnded?.Invoke(this, EventArgs.Empty);
+            SyncPowerAssertion();
         }
+    }
+
+    // --- Output stall recovery -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Detects the output device silently stalling while we're actively playing (the render callback stops
+    /// being pulled) and restarts it. Catches the macOS cases where an AUHAL goes dead after sleep/wake or a
+    /// default-output-device change — which otherwise present as random multi-second dropouts.
+    /// </summary>
+    private void WatchdogCheck()
+    {
+        var now = DateTime.UtcNow;
+
+        // Only meaningful while we expect continuous pulls. Otherwise keep the baseline fresh so a long
+        // pause/stop never trips the watchdog on resume.
+        if (_state != PlaybackState.Playing || _buffer is null)
+        {
+            _lastRenderTicksSeen = Interlocked.Read(ref _renderTicks);
+            _lastRenderProgressUtc = now;
+            return;
+        }
+
+        if (now < _watchdogSuppressUntil) return; // grace period after a restart while the device spins up
+
+        var ticks = Interlocked.Read(ref _renderTicks);
+        if (ticks != _lastRenderTicksSeen)
+        {
+            _lastRenderTicksSeen = ticks;
+            _lastRenderProgressUtc = now;
+            return;
+        }
+
+        // No render callbacks since the last check — if that persists, the device has stalled.
+        if (now - _lastRenderProgressUtc > TimeSpan.FromMilliseconds(700))
+        {
+            RestartOutput();
+            _watchdogSuppressUntil = DateTime.UtcNow.AddMilliseconds(1500);
+            _lastRenderProgressUtc = DateTime.UtcNow;
+            _lastRenderTicksSeen = Interlocked.Read(ref _renderTicks);
+        }
+    }
+
+    private void RestartOutput()
+    {
+        try
+        {
+            _logger.LogWarning("Audio output appears to have stalled; restarting the device.");
+            _output.Stop();
+            _output.Start(Render);
+
+            // The restart re-opens the current default device, which may differ from the old one — adopt its
+            // format so resampling/EQ stay correct.
+            _deviceRate = _output.Format.SampleRate <= 0 ? 48000 : _output.Format.SampleRate;
+            _deviceChannels = _output.Format.Channels <= 0 ? 2 : _output.Format.Channels;
+            _equalizer.SetSampleRate(_deviceRate);
+            var buf = _buffer;
+            if (buf is not null) _ratio = (double)buf.SampleRate / _deviceRate;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to restart the audio output after a stall.");
+        }
+    }
+
+    /// <summary>Holds a macOS "user-initiated" power assertion while playing so App Nap doesn't throttle the
+    /// process (and its audio feed/timers) after long periods in the background. Idempotent and no-op elsewhere.</summary>
+    private void SyncPowerAssertion()
+    {
+        if (_state == PlaybackState.Playing) MacAppNap.Begin("Muselly is playing audio");
+        else MacAppNap.End();
     }
 
     public void Dispose()
@@ -328,5 +455,6 @@ public sealed class FfmpegPlaybackService : IPlaybackService, IDisposable
         _timer.Stop();
         _timer.Dispose();
         _output.Dispose();
+        MacAppNap.End();
     }
 }

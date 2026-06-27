@@ -1,4 +1,5 @@
 using Muselly.Core.Models;
+using Muselly.Core.Services.Interfaces;
 using Muselly.Core.Util;
 using Muselly.Server.Auth;
 using Muselly.Server.Protocol;
@@ -178,6 +179,9 @@ public sealed class MusellyApiService
 
         var artist = string.IsNullOrWhiteSpace(track.Artist) ? track.DisplayArtist : track.Artist!;
         _engine.Log($"{session.Username} streamed \u201c{track.Title}\u201d by {artist} [web]");
+        // Record this play in the streaming user's history (no-op for the built-in host, which records its
+        // own plays through the playback coordinator) and only for real accounts, not share-link guests.
+        if (session.Scope is null) _engine.UserData.RecordPlay(session.Username, track.Id);
         return opusPath;
     }
 
@@ -280,6 +284,103 @@ public sealed class MusellyApiService
     public void RemoveUser(string username)
     {
         if (!string.IsNullOrWhiteSpace(username)) _engine.Users.Remove(username);
+    }
+
+    // --- Users / profiles / per-user data ------------------------------------------------------------
+
+    /// <summary>The users the requesting session may see: admins get everyone, others get public profiles + self.</summary>
+    public UserProfileListResponse ListUserProfiles(Session session)
+    {
+        var viewer = ViewerOf(session);
+        var resp = new UserProfileListResponse();
+        foreach (var u in _engine.UserService.VisibleTo(viewer))
+            resp.Users.Add(ToProfileDto(viewer, u));
+        return resp;
+    }
+
+    /// <summary>A single user's profile, or null if the requester isn't allowed to see it.</summary>
+    public UserProfileDto? GetUserProfile(Session session, string username)
+    {
+        var viewer = ViewerOf(session);
+        var target = _engine.UserService.Get(username);
+        if (target is null || !_engine.UserService.CanView(viewer, target, ProfileFacet.Profile)) return null;
+        return ToProfileDto(viewer, target);
+    }
+
+    /// <summary>Applies profile edits, enforcing that only the owner (or an admin) may change them.</summary>
+    public bool UpdateUserProfile(Session session, UpdateProfileRequest req)
+    {
+        var viewer = ViewerOf(session);
+        var updated = (_engine.UserService.Get(req.Username) ?? new UserProfile { Username = req.Username }).Clone();
+        updated.Bio = string.IsNullOrWhiteSpace(req.Bio) ? null : req.Bio.Trim();
+        updated.ProfileVisibility = req.ProfileVisibility;
+        updated.FavoritesVisibility = req.FavoritesVisibility;
+        updated.NowPlayingVisibility = req.NowPlayingVisibility;
+        updated.ListeningHistoryVisibility = req.ListeningHistoryVisibility;
+        return _engine.UserService.UpdateProfile(viewer.Username, updated);
+    }
+
+    public FavoritesResponse GetFavorites(Session session, string username)
+    {
+        var viewer = ViewerOf(session);
+        var target = _engine.UserService.Get(username) ?? new UserProfile { Username = username };
+        if (!_engine.UserService.CanView(viewer, target, ProfileFacet.Favorites)) return new FavoritesResponse();
+        return new FavoritesResponse
+        {
+            Favorites = _engine.UserData.GetFavorites(username)
+                .Select(f => new FavoriteDto { Kind = f.Kind, Key = f.Key, AddedAt = f.AddedAt }).ToList()
+        };
+    }
+
+    public ToggleFavoriteResponse ToggleFavorite(Session session, ToggleFavoriteRequest req)
+    {
+        var viewer = ViewerOf(session);
+        var owner = string.IsNullOrEmpty(req.Username) ? viewer.Username : req.Username;
+        if (!_engine.UserService.CanEdit(viewer, owner) || string.IsNullOrEmpty(req.Key))
+            return new ToggleFavoriteResponse { Favorited = false };
+        if (req.Favorite is { } on)
+        {
+            _engine.UserData.SetFavorite(owner, req.Kind, req.Key, on);
+            return new ToggleFavoriteResponse { Favorited = on };
+        }
+        return new ToggleFavoriteResponse { Favorited = _engine.UserData.ToggleFavorite(owner, req.Kind, req.Key) };
+    }
+
+    public HistoryResponse GetHistory(Session session, string username)
+    {
+        var viewer = ViewerOf(session);
+        var target = _engine.UserService.Get(username) ?? new UserProfile { Username = username };
+        if (!_engine.UserService.CanView(viewer, target, ProfileFacet.ListeningHistory)) return new HistoryResponse();
+        return new HistoryResponse
+        {
+            Entries = _engine.UserData.GetHistory(username)
+                .Select(e => new HistoryEntryDto { TrackId = e.TrackId, PlayedAt = e.PlayedAt }).ToList()
+        };
+    }
+
+    private UserProfile ViewerOf(Session session) =>
+        _engine.UserService.Get(session.Username) ?? new UserProfile { Username = session.Username };
+
+    private UserProfileDto ToProfileDto(UserProfile viewer, UserProfile u)
+    {
+        var isAdmin = u.IsBuiltIn || _engine.Users.Find(u.Username)?.Role == UserRole.Admin;
+        return new UserProfileDto
+        {
+            Username = u.Username,
+            IsBuiltIn = u.IsBuiltIn,
+            IsAdmin = isAdmin,
+            Bio = u.Bio,
+            HasPicture = !string.IsNullOrEmpty(u.ProfilePicturePath),
+            ProfileVisibility = u.ProfileVisibility,
+            FavoritesVisibility = u.FavoritesVisibility,
+            NowPlayingVisibility = u.NowPlayingVisibility,
+            ListeningHistoryVisibility = u.ListeningHistoryVisibility,
+            RemoteLoginEnabled = u.RemoteLoginEnabled,
+            CanEdit = _engine.UserService.CanEdit(viewer, u.Username),
+            CanViewFavorites = _engine.UserService.CanView(viewer, u, ProfileFacet.Favorites),
+            CanViewNowPlaying = _engine.UserService.CanView(viewer, u, ProfileFacet.NowPlaying),
+            CanViewHistory = _engine.UserService.CanView(viewer, u, ProfileFacet.ListeningHistory)
+        };
     }
 
     // --- Helpers -------------------------------------------------------------------------------------

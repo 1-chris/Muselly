@@ -21,9 +21,13 @@ public sealed partial class MainViewModel : ViewModelBase
     private readonly INavigationService _nav;
     private readonly ILibraryService _library;
     private readonly IPlaylistService _playlists;
+    private readonly IFavoritesService _favorites;
     private readonly ISettingsService _settings;
     private readonly IThemeService _themes;
     private readonly IArtistInfoService _artistInfo;
+    private readonly ISessionStateService _session;
+    private readonly IUserService _users;
+    private readonly IListeningHistoryService _history;
     private bool _syncingNav;
 
     public MainViewModel(
@@ -34,9 +38,13 @@ public sealed partial class MainViewModel : ViewModelBase
         LibraryViewModel libraryViewModel,
         ILibraryService libraryService,
         IPlaylistService playlistService,
+        IFavoritesService favoritesService,
         ISettingsService settingsService,
         IThemeService themes,
-        IArtistInfoService artistInfo)
+        IArtistInfoService artistInfo,
+        ISessionStateService session,
+        IUserService users,
+        IListeningHistoryService history)
     {
         _nav = nav;
         Player = player;
@@ -45,16 +53,33 @@ public sealed partial class MainViewModel : ViewModelBase
         Library = libraryViewModel;
         _library = libraryService;
         _playlists = playlistService;
+        _favorites = favoritesService;
         _settings = settingsService;
         _themes = themes;
         _artistInfo = artistInfo;
+        _session = session;
+        _users = users;
+        _history = history;
 
         Player.QueueToggleRequested = () => IsQueueOpen = !IsQueueOpen;
         Player.LyricsToggleRequested = () => IsLyricsOpen = !IsLyricsOpen;
         _nav.Changed += (_, _) => OnUi(OnNavChanged);
+        _users.Changed += (_, _) => OnUi(() =>
+        {
+            OnPropertyChanged(nameof(CurrentUserName));
+            OnPropertyChanged(nameof(CurrentUserPicture));
+        });
 
         _nav.ShowLibrary();
     }
+
+    /// <summary>The built-in local user's display name, shown on the title-bar profile card.</summary>
+    public string CurrentUserName => _users.Current.Username;
+
+    /// <summary>The built-in local user's profile picture path, if any.</summary>
+    public string? CurrentUserPicture => _users.Current.ProfilePicturePath;
+
+    [RelayCommand] private void OpenProfile() => _nav.ShowUserProfile(_users.Current.Username);
 
     public PlayerBarViewModel Player { get; }
     public QueueViewModel Queue { get; }
@@ -97,8 +122,10 @@ public sealed partial class MainViewModel : ViewModelBase
             case 2: _nav.ShowLibraryTab(2); break; // Songs
             case 3: _nav.ShowLibraryTab(3); break; // Folders
             case 4: _nav.ShowPlaylists(); break;
-            case 5: _nav.ShowConnect(); break;
-            case 6: _nav.ShowSettings(); break;
+            case 5: _nav.ShowFavorites(); break;
+            case 6: _nav.ShowUsers(); break;
+            case 7: _nav.ShowConnect(); break;
+            case 8: _nav.ShowSettings(); break;
         }
     }
 
@@ -123,9 +150,11 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             LibraryViewModel lib => System.Math.Clamp(lib.SelectedTabIndex, 0, 3),
             PlaylistsViewModel => 4,
-            ConnectViewModel => 5,
-            SettingsViewModel => 6,
-            _ => -1 // album/artist/now-playing pages: leave the rail as-is
+            FavoritesViewModel => 5,
+            UsersViewModel => 6,
+            ConnectViewModel => 7,
+            SettingsViewModel => 8,
+            _ => -1 // album/artist/now-playing/profile pages: leave the rail as-is
         };
         if (index >= 0 && index != SelectedNavIndex)
         {
@@ -143,7 +172,17 @@ public sealed partial class MainViewModel : ViewModelBase
 
         await _library.LoadAsync();
         await _playlists.LoadAsync();
+        await _favorites.LoadAsync();
+        await _users.LoadAsync();
+        await _history.LoadAsync();
         await _artistInfo.LoadAsync();
+
+        OnPropertyChanged(nameof(CurrentUserName));
+        OnPropertyChanged(nameof(CurrentUserPicture));
+
+        // Resume the previous session (queue + current track, paused at its last position) now that the
+        // library is loaded so track ids resolve.
+        await _session.RestoreAsync();
 
         if (_library.Tracks.Count == 0 && _settings.Current.MusicFolders.Count > 0)
             await _library.ScanAsync();

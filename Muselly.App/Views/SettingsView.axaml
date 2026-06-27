@@ -62,15 +62,41 @@
                     <CheckBox Content="Include sub-folders when scanning"
                               IsChecked="{Binding ScanSubdirectories}"/>
 
+                    <StackPanel Spacing="2">
+                        <CheckBox Content="Merge compilation albums"
+                                  IsChecked="{Binding MergeCompilationAlbums}"/>
+                        <TextBlock Classes="caption" Margin="28,0,0,0"
+                                   Text="Group multi-artist albums (e.g. soundtracks, Various Artists) into one album instead of splitting them per track."/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="2">
+                        <CheckBox Content="Hide duplicate songs"
+                                  IsChecked="{Binding DeduplicateTracks}"/>
+                        <TextBlock Classes="caption" Margin="28,0,0,0"
+                                   Text="When the same song appears more than once, show only the highest-quality copy in Songs, Albums and Artists. Files are never deleted and the Folders view still shows everything."/>
+                    </StackPanel>
+
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-                        <Button Grid.Column="0" Classes="pill" Command="{Binding RescanCommand}"
-                                IsEnabled="{Binding !IsScanning}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path Data="{StaticResource IconRefresh}" Width="15" Height="15" Stretch="Uniform"
-                                      Fill="{StaticResource CatppuccinText}" VerticalAlignment="Center"/>
-                                <TextBlock Text="Rescan library"/>
-                            </StackPanel>
-                        </Button>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                            <Button Classes="accent" Command="{Binding ScanNewCommand}"
+                                    IsEnabled="{Binding !IsScanning}"
+                                    ToolTip.Tip="Quickly add newly-added files. Existing tracks are kept and nothing is removed.">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Path Data="{StaticResource IconRefresh}" Width="15" Height="15" Stretch="Uniform"
+                                          Fill="{StaticResource CatppuccinCrust}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Scan for new songs"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Classes="pill" Command="{Binding RescanCommand}"
+                                    IsEnabled="{Binding !IsScanning}"
+                                    ToolTip.Tip="Re-read every file: add new, refresh edits and remove missing. Keeps album art fetched from the internet.">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Path Data="{StaticResource IconRefresh}" Width="15" Height="15" Stretch="Uniform"
+                                          Fill="{StaticResource CatppuccinText}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Full rescan"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                             <TextBlock Text="{Binding ScanStatus}" Classes="caption"/>
                             <ProgressBar Value="{Binding ScanFraction}" Maximum="1" Height="6"

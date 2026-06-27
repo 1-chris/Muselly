@@ -34,6 +34,10 @@
                         </StackPanel>
                     </Button>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Shuffle" Command="{Binding PlayShuffledCommand}"/>
+                    <Button Classes="pill compact" Margin="0,0,8,8" Content="♡ Favourite" Command="{Binding ToggleFavoriteCommand}"
+                            IsVisible="{Binding !IsFavorite}"/>
+                    <Button Classes="accent compact" Margin="0,0,8,8" Content="♥ Favourited" Command="{Binding ToggleFavoriteCommand}"
+                            IsVisible="{Binding IsFavorite}"/>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Play next" Command="{Binding PlayNextCommand}"/>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Add to queue" Command="{Binding AddToQueueCommand}"/>
                     <Button Classes="pill compact" Margin="0,0,8,8" Content="Queue shuffled" Command="{Binding AddToQueueShuffledCommand}"/>
@@ -60,6 +64,7 @@
         <!-- Track list -->
         <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding Tracks}"
                  controls:DragDropBehavior.DragSource="Library"
+                 controls:ScrollMemory.Key="{Binding ScrollKey}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:Track">

@@ -20,6 +20,7 @@ public sealed partial class PlayerBarViewModel : ViewModelBase
     private readonly IPlaybackService _playback;
     private readonly IQueueService _queue;
     private readonly INavigationService _nav;
+    private readonly IFavoritesService _favorites;
 
     /// <summary>Set by the shell so the queue button can open/close the queue drawer.</summary>
     public Action? QueueToggleRequested { get; set; }
@@ -28,21 +29,35 @@ public sealed partial class PlayerBarViewModel : ViewModelBase
     public Action? LyricsToggleRequested { get; set; }
 
     public PlayerBarViewModel(PlaybackCoordinator coordinator, IPlaybackService playback, IQueueService queue,
-        INavigationService nav)
+        INavigationService nav, IFavoritesService favorites)
     {
         _coordinator = coordinator;
         _playback = playback;
         _queue = queue;
         _nav = nav;
+        _favorites = favorites;
 
         _playback.StateChanged += (_, _) => OnUi(RefreshState);
         _playback.PositionChanged += (_, _) => OnUi(RefreshPosition);
         _queue.CurrentChanged += (_, _) => OnUi(RefreshTrack);
         _queue.QueueChanged += (_, _) => OnUi(RefreshTransport);
+        _favorites.Changed += (_, _) => OnUi(RefreshFavorite);
 
         RefreshTrack();
         RefreshState();
     }
+
+    [ObservableProperty] private bool _isCurrentFavorite;
+
+    [RelayCommand]
+    private void ToggleFavorite()
+    {
+        if (CurrentTrack is { } t && !string.IsNullOrEmpty(t.Id))
+            _favorites.Toggle(FavoriteKind.Song, t.Id);
+    }
+
+    private void RefreshFavorite() =>
+        IsCurrentFavorite = CurrentTrack is { } t && _favorites.IsFavorite(FavoriteKind.Song, t.Id);
 
     [ObservableProperty] private Track? _currentTrack;
     [ObservableProperty] private bool _hasTrack;
@@ -102,6 +117,7 @@ public sealed partial class PlayerBarViewModel : ViewModelBase
         OnPropertyChanged(nameof(ArtworkPath));
         RefreshState();
         RefreshTransport();
+        RefreshFavorite();
     }
 
     private void RefreshState()
