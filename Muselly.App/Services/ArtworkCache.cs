@@ -16,44 +16,151 @@ namespace Muselly.App.Services;
 public static class ArtworkCache
 {
     private const int DecodeWidth = 320;
+
+    // Bounded LRU: scrolling a huge library would otherwise decode tens of thousands of bitmaps and keep
+    // them forever (multi-GB). We cap the live bitmaps and evict the least-recently-used; combined with a
+    // virtualizing grid (which releases off-screen card references), memory stays flat.
+    private const int MaxEntries = 384;
     private static readonly object Gate = new();
-    private static readonly Dictionary<string, Bitmap?> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, LinkedListNode<Entry>> Map = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly LinkedList<Entry> Lru = new(); // most-recent at the front
+
+    // Paths currently displayed by a live AlbumArt control (ref-counted). Pinned entries are never disposed
+    // on eviction, so we can safely dispose everything else promptly to free native (Skia) memory.
+    private static readonly Dictionary<string, int> Pins = new(StringComparer.OrdinalIgnoreCase);
+
+    private sealed class Entry
+    {
+        public required string Key;
+        public Bitmap? Bitmap;
+    }
 
     /// <summary>Set by the platform head so remote artwork can be streamed in. Null on heads without networking.</summary>
     public static IRemoteServerManager? RemoteManager { get; set; }
 
-    /// <summary>Synchronous lookup: returns a cached/local bitmap, or null (remote art needs <see cref="GetRemoteAsync"/>).</summary>
+    /// <summary>Synchronous lookup: returns an already-cached bitmap, or null. A null result for a local path
+    /// means "not decoded yet" — call <see cref="GetLocalAsync"/> to decode it off the UI thread.</summary>
     public static Bitmap? Get(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
-
         lock (Gate)
         {
-            if (Cache.TryGetValue(path, out var cached))
-                return cached;
+            if (!Map.TryGetValue(path, out var node)) return null;
+            Touch(node); // mark most-recently-used
+            return node.Value.Bitmap;
         }
+    }
 
-        if (RemoteSource.IsRemote(path))
-            return null; // resolved asynchronously by GetRemoteAsync
+    /// <summary>Inserts/refreshes a cache entry and evicts the least-recently-used beyond the cap. Caller must
+    /// not hold a disposed bitmap: evicted bitmaps are disposed, and the cap is far larger than any viewport,
+    /// so an evicted entry is one that scrolled out of view long ago.</summary>
+    private static void Store(string path, Bitmap? bitmap)
+    {
+        lock (Gate)
+        {
+            if (Map.TryGetValue(path, out var existing))
+            {
+                existing.Value.Bitmap = bitmap;
+                Touch(existing);
+                return;
+            }
+
+            var node = new LinkedListNode<Entry>(new Entry { Key = path, Bitmap = bitmap });
+            Lru.AddFirst(node);
+            Map[path] = node;
+            EvictIfNeeded();
+        }
+    }
+
+    /// <summary>Evicts least-recently-used entries beyond the cap, disposing each evicted bitmap to free its
+    /// native memory immediately. Pinned entries (currently on screen) are skipped so a displayed cover is
+    /// never disposed out from under a control.</summary>
+    private static void EvictIfNeeded()
+    {
+        while (Map.Count > MaxEntries)
+        {
+            // Find the least-recently-used entry that isn't pinned.
+            var node = Lru.Last;
+            while (node is not null && Pins.ContainsKey(node.Value.Key))
+                node = node.Previous;
+            if (node is null) break; // everything live is pinned (cap is far larger than the viewport)
+
+            Map.Remove(node.Value.Key);
+            Lru.Remove(node);
+            node.Value.Bitmap?.Dispose();
+        }
+    }
+
+    /// <summary>Marks a path as on-screen so its cached bitmap won't be evicted/disposed. Ref-counted.</summary>
+    public static void Pin(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        lock (Gate)
+            Pins[path] = Pins.TryGetValue(path, out var n) ? n + 1 : 1;
+    }
+
+    /// <summary>Releases a pin taken by <see cref="Pin"/>.</summary>
+    public static void Unpin(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        lock (Gate)
+        {
+            if (!Pins.TryGetValue(path, out var n)) return;
+            if (n <= 1) Pins.Remove(path);
+            else Pins[path] = n - 1;
+        }
+    }
+
+    private static void Touch(LinkedListNode<Entry> node)
+    {
+        if (Lru.First == node) return;
+        Lru.Remove(node);
+        Lru.AddFirst(node);
+    }
+
+    /// <summary>Returns true if the path is cached (even as a null "no art" result), so the async loaders can
+    /// skip re-decoding/re-fetching known-missing art.</summary>
+    private static bool TryGetCached(string path, out Bitmap? bitmap)
+    {
+        lock (Gate)
+        {
+            if (Map.TryGetValue(path, out var node))
+            {
+                Touch(node);
+                bitmap = node.Value.Bitmap;
+                return true;
+            }
+            bitmap = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Decodes a local cover off the UI thread (bounded to the thumbnail width) and caches it, so populating
+    /// a page of cards never blocks the UI. Returns the cached bitmap immediately if already decoded.
+    /// </summary>
+    public static async Task<Bitmap?> GetLocalAsync(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || RemoteSource.IsRemote(path)) return null;
+
+        if (TryGetCached(path, out var cached)) return cached;
 
         Bitmap? bitmap = null;
         try
         {
-            if (File.Exists(path))
+            bitmap = await Task.Run(() =>
             {
+                if (!File.Exists(path)) return (Bitmap?)null;
                 using var stream = File.OpenRead(path);
-                bitmap = Bitmap.DecodeToWidth(stream, DecodeWidth);
-            }
+                return Bitmap.DecodeToWidth(stream, DecodeWidth);
+            }).ConfigureAwait(true);
         }
         catch
         {
             bitmap = null;
         }
 
-        lock (Gate)
-        {
-            Cache[path] = bitmap;
-        }
+        Store(path, bitmap);
         return bitmap;
     }
 
@@ -79,8 +186,12 @@ public static class ArtworkCache
 
             if (File.Exists(path))
             {
-                using var stream = File.OpenRead(path);
-                return new Bitmap(stream); // full resolution (no DecodeToWidth)
+                // Decode off the UI thread so opening the lightbox never hitches.
+                return await Task.Run(() =>
+                {
+                    using var stream = File.OpenRead(path);
+                    return new Bitmap(stream); // full resolution (no DecodeToWidth)
+                }).ConfigureAwait(true);
             }
         }
         catch
@@ -95,11 +206,7 @@ public static class ArtworkCache
     {
         if (string.IsNullOrWhiteSpace(path) || !RemoteSource.IsRemote(path)) return null;
 
-        lock (Gate)
-        {
-            if (Cache.TryGetValue(path, out var cached))
-                return cached;
-        }
+        if (TryGetCached(path, out var cached)) return cached;
 
         Bitmap? bitmap = null;
         var manager = RemoteManager;
@@ -120,10 +227,7 @@ public static class ArtworkCache
             }
         }
 
-        lock (Gate)
-        {
-            Cache[path] = bitmap;
-        }
+        Store(path, bitmap);
         return bitmap;
     }
 }

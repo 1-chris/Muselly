@@ -23,6 +23,10 @@ public interface ILibraryService
 
     bool IsScanning { get; }
 
+    /// <summary>True while the cached library is being loaded from disk at startup (before the first
+    /// <see cref="LibraryChanged"/>). Lets the UI show a "loading" state rather than "empty".</summary>
+    bool IsLoading { get; }
+
     /// <summary>Raised (possibly off the UI thread) whenever the library content changes.</summary>
     event EventHandler? LibraryChanged;
 

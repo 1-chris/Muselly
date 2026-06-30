@@ -8,27 +8,9 @@ namespace Muselly.App.Views;
 
 public partial class LibraryView : UserControl
 {
-    // Start loading the next page before the user actually hits the bottom, so scrolling feels seamless.
-    private const double LoadThreshold = 800;
-
     public LibraryView() => InitializeComponent();
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
-    private void OnAlbumsScrollChanged(object? sender, ScrollChangedEventArgs e)
-    {
-        if (sender is ScrollViewer sv && DataContext is LibraryViewModel vm && IsNearBottom(sv))
-            vm.LoadMoreAlbums();
-    }
-
-    private void OnArtistsScrollChanged(object? sender, ScrollChangedEventArgs e)
-    {
-        if (sender is ScrollViewer sv && DataContext is LibraryViewModel vm && IsNearBottom(sv))
-            vm.LoadMoreArtists();
-    }
-
-    private static bool IsNearBottom(ScrollViewer sv) =>
-        sv.Offset.Y >= sv.Extent.Height - sv.Viewport.Height - LoadThreshold;
 
     // Context menus run in a separate popup tree, so XAML RelativeSource/PlacementTarget bindings to the
     // page view model are unreliable. We dispatch from code-behind instead: the view's DataContext is the

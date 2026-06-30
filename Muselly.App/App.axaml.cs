@@ -55,6 +55,7 @@ namespace Muselly.App
             services.AddSingleton<Services.IFolderPicker, Services.StorageFolderPicker>();
             services.AddSingleton<Services.IJapaneseTextService, Services.JapaneseTextService>();
             services.AddSingleton<Services.PlaybackCoordinator>();
+            services.AddSingleton<Services.ScrobbleCoordinator>();
             services.AddSingleton<Services.INavigationService, Services.NavigationService>();
             services.AddSingleton<Services.ISessionStateService, Services.SessionStateService>();
 
@@ -94,6 +95,9 @@ namespace Muselly.App
 
             // Let cover-art controls stream remote artwork in via the connected servers.
             Services.ArtworkCache.RemoteManager = ServiceProvider.GetService<IRemoteServerManager>();
+
+            // Activate the scrobble coordinator so it starts observing playback (it subscribes in its ctor).
+            ServiceProvider.GetRequiredService<Services.ScrobbleCoordinator>();
 
             // Establish the font-size resources used across the app.
             ApplyFontScale(1.0);

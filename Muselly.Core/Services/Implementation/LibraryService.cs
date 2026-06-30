@@ -50,6 +50,8 @@ public sealed class LibraryService : ILibraryService
 
     public bool IsScanning { get; private set; }
 
+    public bool IsLoading { get; private set; } = true;
+
     public event EventHandler? LibraryChanged;
     public event EventHandler<ScanProgress>? ScanProgressChanged;
 
@@ -68,9 +70,17 @@ public sealed class LibraryService : ILibraryService
 
     public Task LoadAsync() => Task.Run(() =>
     {
-        var snapshot = JsonStore.Load(StoragePaths.LibraryCacheFile(), () => new LibrarySnapshot());
-        _localTracks = snapshot.Tracks ?? new List<Track>();
-        RebuildCombined();
+        IsLoading = true;
+        try
+        {
+            var snapshot = JsonStore.Load(StoragePaths.LibraryCacheFile(), () => new LibrarySnapshot());
+            _localTracks = snapshot.Tracks ?? new List<Track>();
+            RebuildCombined();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
         LibraryChanged?.Invoke(this, EventArgs.Empty);
     });
 

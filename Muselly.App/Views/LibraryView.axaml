@@ -24,8 +24,19 @@
         <!-- Content (search lives in the shared top bar; tab switching in the left rail) -->
         <Panel>
 
+            <!-- Loading hint (shown while the cached library loads or a scan is in progress) -->
+            <StackPanel IsVisible="{Binding IsLoading}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Spacing="16" MaxWidth="420">
+                <ProgressBar IsIndeterminate="True" Width="220" Height="6"
+                             Foreground="{StaticResource CatppuccinMauve}"
+                             Background="{StaticResource CatppuccinSurface1}"/>
+                <TextBlock Text="Loading your library…" Classes="h2" HorizontalAlignment="Center"/>
+                <TextBlock HorizontalAlignment="Center" TextAlignment="Center" Classes="subtle"
+                           Text="This can take a moment for large collections."/>
+            </StackPanel>
+
             <!-- Empty library hint -->
-            <StackPanel IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" HorizontalAlignment="Center"
+            <StackPanel IsVisible="{Binding ShowEmpty}" VerticalAlignment="Center" HorizontalAlignment="Center"
                         Spacing="14" MaxWidth="420">
                 <Path Data="{StaticResource IconLibrary}" Fill="{StaticResource CatppuccinOverlay0}"
                       Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Center"/>
@@ -34,17 +45,14 @@
                            Text="Add music folders in Settings to scan your collection. Muselly reads MP3, WAV, FLAC, ALAC, AAC and Opus."/>
             </StackPanel>
 
-            <!-- Albums grid -->
-            <ScrollViewer IsVisible="{Binding IsAlbumsTab}" ScrollChanged="OnAlbumsScrollChanged"
-                          controls:ScrollMemory.Key="lib.albums">
-                <ItemsControl ItemsSource="{Binding Albums}" controls:DragDropBehavior.DragSource="Library">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
+            <!-- Albums grid (custom virtualizing wrap panel: only on-screen cards are realized) -->
+            <ScrollViewer IsVisible="{Binding IsAlbumsTab}" controls:ScrollMemory.Key="lib.albums">
+                <controls:VirtualizingWrapPanel ItemsSource="{Binding Albums}"
+                                                ItemWidth="184" ItemHeight="232" Margin="0,0,0,12">
+                    <controls:VirtualizingWrapPanel.ItemTemplate>
                         <DataTemplate x:DataType="models:Album">
                             <Button Classes="ghost album" Padding="8" CornerRadius="12"
-                                    Command="{Binding DataContext.OpenAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    Command="{Binding DataContext.OpenAlbumCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}">
                                 <StackPanel Width="160" Spacing="8">
                                     <Panel>
@@ -53,7 +61,7 @@
                                                              Width="44" Height="44" CornerRadius="22" IconSize="22"
                                                              HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                                              Margin="0,0,8,8"
-                                                             Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                             Command="{Binding DataContext.PlayAlbumCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                              CommandParameter="{Binding}"/>
                                     </Panel>
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
@@ -87,21 +95,18 @@
                                 </Button.ContextMenu>
                             </Button>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </controls:VirtualizingWrapPanel.ItemTemplate>
+                </controls:VirtualizingWrapPanel>
             </ScrollViewer>
 
-            <!-- Artists grid -->
-            <ScrollViewer IsVisible="{Binding IsArtistsTab}" ScrollChanged="OnArtistsScrollChanged"
-                          controls:ScrollMemory.Key="lib.artists">
-                <ItemsControl ItemsSource="{Binding Artists}" controls:DragDropBehavior.DragSource="Library">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
+            <!-- Artists grid (custom virtualizing wrap panel) -->
+            <ScrollViewer IsVisible="{Binding IsArtistsTab}" controls:ScrollMemory.Key="lib.artists">
+                <controls:VirtualizingWrapPanel ItemsSource="{Binding Artists}"
+                                                ItemWidth="172" ItemHeight="236" Margin="0,0,0,12">
+                    <controls:VirtualizingWrapPanel.ItemTemplate>
                         <DataTemplate x:DataType="models:Artist">
                             <Button Classes="ghost album" Padding="8" CornerRadius="12"
-                                    Command="{Binding DataContext.OpenArtistCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    Command="{Binding DataContext.OpenArtistCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}">
                                 <StackPanel Width="150" Spacing="8">
                                     <controls:AlbumArt Width="150" Height="150" CornerRadius="75"
@@ -140,8 +145,8 @@
                                 </Button.ContextMenu>
                             </Button>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </controls:VirtualizingWrapPanel.ItemTemplate>
+                </controls:VirtualizingWrapPanel>
             </ScrollViewer>
 
             <!-- Songs list -->

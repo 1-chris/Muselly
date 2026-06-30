@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ViewModelBase
     private readonly ISessionStateService _session;
     private readonly IUserService _users;
     private readonly IListeningHistoryService _history;
+    private readonly IScrobbleService _scrobble;
     private bool _syncingNav;
 
     public MainViewModel(
@@ -44,7 +45,8 @@ public sealed partial class MainViewModel : ViewModelBase
         IArtistInfoService artistInfo,
         ISessionStateService session,
         IUserService users,
-        IListeningHistoryService history)
+        IListeningHistoryService history,
+        IScrobbleService scrobble)
     {
         _nav = nav;
         Player = player;
@@ -60,6 +62,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _session = session;
         _users = users;
         _history = history;
+        _scrobble = scrobble;
 
         Player.QueueToggleRequested = () => IsQueueOpen = !IsQueueOpen;
         Player.LyricsToggleRequested = () => IsLyricsOpen = !IsLyricsOpen;
@@ -175,6 +178,7 @@ public sealed partial class MainViewModel : ViewModelBase
         await _favorites.LoadAsync();
         await _users.LoadAsync();
         await _history.LoadAsync();
+        await _scrobble.LoadAsync();
         await _artistInfo.LoadAsync();
 
         OnPropertyChanged(nameof(CurrentUserName));

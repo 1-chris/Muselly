@@ -47,6 +47,9 @@ public static class StoragePaths
     /// <summary>Persisted favourited songs/albums/artists for the local user.</summary>
     public static string FavoritesFile() => Path.Combine(ConfigDirectory(), "favorites.json");
 
+    /// <summary>Persisted per-user scrobbling connections (session keys / tokens).</summary>
+    public static string ScrobbleAccountsFile() => Path.Combine(ConfigDirectory(), "scrobble-accounts.json");
+
     /// <summary>Persisted user profiles (built-in local user + privacy settings, bios, pictures).</summary>
     public static string UserProfilesFile() => Path.Combine(ConfigDirectory(), "user-profiles.json");
 

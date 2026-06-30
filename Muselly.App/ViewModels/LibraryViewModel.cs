@@ -35,6 +35,7 @@ public sealed partial class LibraryViewModel : ViewModelBase
         _nav = nav;
         _shareLinks = shareLinks;
         _library.LibraryChanged += (_, _) => OnUi(Reload);
+        _library.ScanProgressChanged += (_, _) => OnUi(UpdateStatus);
         Reload();
     }
 
@@ -44,18 +45,19 @@ public sealed partial class LibraryViewModel : ViewModelBase
     public RangeObservableCollection<FolderNode> FolderRoots { get; } = new();
     public RangeObservableCollection<Track> FolderTracks { get; } = new();
 
-    // The albums/artists grids aren't virtualized (wrapping grid), so they're populated incrementally — a
-    // page at a time as the user scrolls — to keep first paint fast and memory bounded on large libraries.
-    private const int PageSize = 60;
-    private List<Album> _allAlbums = new();
-    private List<Artist> _allArtists = new();
-
     private CancellationTokenSource? _filterCts;
 
     [ObservableProperty] private int _selectedTabIndex;
     [ObservableProperty] private string _searchText = string.Empty;
     [ObservableProperty] private FolderNode? _selectedFolder;
     [ObservableProperty] private bool _isEmpty;
+    [ObservableProperty] private bool _isLoading = true;
+
+    /// <summary>Show the "empty library" hint only once loading has finished (otherwise show "loading").</summary>
+    public bool ShowEmpty => IsEmpty && !IsLoading;
+
+    partial void OnIsEmptyChanged(bool value) => OnPropertyChanged(nameof(ShowEmpty));
+    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(ShowEmpty));
 
     public bool IsAlbumsTab => SelectedTabIndex == 0;
     public bool IsArtistsTab => SelectedTabIndex == 1;
@@ -182,8 +184,16 @@ public sealed partial class LibraryViewModel : ViewModelBase
     private void Reload()
     {
         FolderRoots.Reset(new List<FolderNode>(_library.Folders));
-        IsEmpty = _library.Tracks.Count == 0;
+        UpdateStatus();
         ScheduleFilter(0); // refilter immediately against the new library contents
+    }
+
+    /// <summary>Keeps the empty/loading hints in step with the library: "loading" while the cache loads or a
+    /// scan runs, "empty" only once we know the library is genuinely empty.</summary>
+    private void UpdateStatus()
+    {
+        IsLoading = _library.IsLoading || _library.IsScanning;
+        IsEmpty = _library.Tracks.Count == 0;
     }
 
     /// <summary>
@@ -242,38 +252,17 @@ public sealed partial class LibraryViewModel : ViewModelBase
             OnUi(() =>
             {
                 if (ct.IsCancellationRequested) return;
-                _allAlbums = result.albums;
-                _allArtists = result.artists;
-                Albums.Reset(Page(_allAlbums, 0));
-                Artists.Reset(Page(_allArtists, 0));
-                Songs.Reset(result.songs); // the songs list virtualizes, so no paging needed
+                // Every view virtualizes — the album/artist grids via VirtualizingWrapPanel, the songs list
+                // via ListBox — so we bind the full filtered lists and only on-screen items are realized.
+                Albums.Reset(result.albums);
+                Artists.Reset(result.artists);
+                Songs.Reset(result.songs);
             });
         }
         catch (System.OperationCanceledException)
         {
             // Superseded by a newer query — ignore.
         }
-    }
-
-    /// <summary>Appends the next page of albums when the grid is scrolled near its end.</summary>
-    public void LoadMoreAlbums()
-    {
-        if (Albums.Count >= _allAlbums.Count) return;
-        Albums.AddRange(Page(_allAlbums, Albums.Count));
-    }
-
-    /// <summary>Appends the next page of artists when the grid is scrolled near its end.</summary>
-    public void LoadMoreArtists()
-    {
-        if (Artists.Count >= _allArtists.Count) return;
-        Artists.AddRange(Page(_allArtists, Artists.Count));
-    }
-
-    private static List<T> Page<T>(List<T> source, int offset)
-    {
-        if (offset >= source.Count) return new List<T>();
-        var count = System.Math.Min(PageSize, source.Count - offset);
-        return source.GetRange(offset, count);
     }
 
     private static bool Contains(string? haystack, string needle) =>

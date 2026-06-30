@@ -9,6 +9,12 @@
              x:Class="Muselly.App.Views.AlbumDetailView"
              x:DataType="vm:AlbumDetailViewModel">
 
+    <UserControl.Styles>
+        <Style Selector="Border.trackrow:pointerover">
+            <Setter Property="Background" Value="{StaticResource CatppuccinSurface0}"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto,*" Margin="24,8,24,18">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,18">
@@ -62,48 +68,68 @@
             </StackPanel>
         </Grid>
 
-        <!-- Track list -->
-        <ListBox Grid.Row="1" Classes="tracks" ItemsSource="{Binding Tracks}"
-                 controls:DragDropBehavior.DragSource="Library"
-                 controls:ScrollMemory.Key="{Binding ScrollKey}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="models:Track">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" Height="44" Background="Transparent"
-                          controls:DoubleTappedBehavior.Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                          controls:DoubleTappedBehavior.CommandParameter="{Binding}">
-                        <TextBlock Grid.Column="0" Text="{Binding TrackNumber}" Width="34" TextAlignment="Center"
-                                   VerticalAlignment="Center" Classes="subtle" FontSize="13"/>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
-                            <Button Classes="link" HorizontalAlignment="Left" FontSize="11"
-                                    Content="{Binding DisplayArtist}"
-                                    Command="{Binding DataContext.OpenTrackArtistCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                    CommandParameter="{Binding}"/>
+        <!-- Track list, grouped by disc (headers only shown for multi-disc albums) -->
+        <ScrollViewer Grid.Row="1" controls:ScrollMemory.Key="{Binding ScrollKey}"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Discs}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AlbumDisc">
+                        <StackPanel Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="Auto,*" Margin="0,12,0,4" IsVisible="{Binding ShowHeader}">
+                                <Path Grid.Column="0" Data="{StaticResource IconAlbum}" Width="14" Height="14"
+                                      Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                                      Fill="{StaticResource CatppuccinOverlay1}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" Classes="caption"
+                                           FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Border Height="1" Background="{StaticResource CatppuccinSurface1}"
+                                    Margin="0,0,0,4" IsVisible="{Binding ShowHeader}"/>
+                            <ItemsControl ItemsSource="{Binding Tracks}"
+                                          controls:DragDropBehavior.DragSource="Library">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:Track">
+                                        <Border Classes="trackrow" Background="Transparent" CornerRadius="6">
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" Height="44"
+                                                  controls:DoubleTappedBehavior.Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  controls:DoubleTappedBehavior.CommandParameter="{Binding}">
+                                                <TextBlock Grid.Column="0" Text="{Binding TrackNumber}" Width="34" TextAlignment="Center"
+                                                           VerticalAlignment="Center" Classes="subtle" FontSize="13"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource CatppuccinText}"/>
+                                                    <Button Classes="link" HorizontalAlignment="Left" FontSize="11"
+                                                            Content="{Binding DisplayArtist}"
+                                                            Command="{Binding DataContext.OpenTrackArtistCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" VerticalAlignment="Center" Classes="subtle" FontSize="12"
+                                                           Margin="0,0,8,0"
+                                                           Text="{Binding Duration, Converter={StaticResource DurationConverter}}"/>
+                                                <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconPlay}"
+                                                                     Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                     CommandParameter="{Binding}"/>
+                                                <Grid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="Play" Tag="track.play" Click="OnTrackMenuClick">
+                                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Play next" Tag="track.playnext" Click="OnTrackMenuClick">
+                                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem Header="Add to queue" Tag="track.queue" Click="OnTrackMenuClick">
+                                                            <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
+                                                        </MenuItem>
+                                                    </ContextMenu>
+                                                </Grid.ContextMenu>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
-                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Classes="subtle" FontSize="12"
-                                   Margin="0,0,8,0"
-                                   Text="{Binding Duration, Converter={StaticResource DurationConverter}}"/>
-                        <controls:IconButton Grid.Column="3" Classes="small" Icon="{StaticResource IconPlay}"
-                                             Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                             CommandParameter="{Binding}"/>
-                        <Grid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Play" Tag="track.play" Click="OnTrackMenuClick">
-                                    <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlay}"/></MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="Play next" Tag="track.playnext" Click="OnTrackMenuClick">
-                                    <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconQueue}"/></MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="Add to queue" Tag="track.queue" Click="OnTrackMenuClick">
-                                    <MenuItem.Icon><Path Classes="menuicon" Data="{StaticResource IconPlus}"/></MenuItem.Icon>
-                                </MenuItem>
-                            </ContextMenu>
-                        </Grid.ContextMenu>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Grid>
 </UserControl>

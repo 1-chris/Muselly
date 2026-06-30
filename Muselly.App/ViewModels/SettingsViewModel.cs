@@ -26,9 +26,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly IFolderPicker _folderPicker;
     private readonly IAudioEqualizer _equalizer;
     private readonly IArtworkScanService _artworkScan;
+    private readonly IScrobbleService _scrobble;
+    private readonly IUserService _users;
 
     public SettingsViewModel(ISettingsService settings, ILibraryService library, IThemeService themes,
-        IFolderPicker folderPicker, IAudioEqualizer equalizer, IArtworkScanService artworkScan)
+        IFolderPicker folderPicker, IAudioEqualizer equalizer, IArtworkScanService artworkScan,
+        IScrobbleService scrobble, IUserService users)
     {
         _settings = settings;
         _library = library;
@@ -36,6 +39,14 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _folderPicker = folderPicker;
         _equalizer = equalizer;
         _artworkScan = artworkScan;
+        _scrobble = scrobble;
+        _users = users;
+
+        ScrobbleServices.Add(new ScrobbleServiceViewModel(ScrobbleProvider.LastFm, "Last.fm", scrobble, () => _users.Current.Username));
+        ScrobbleServices.Add(new ScrobbleServiceViewModel(ScrobbleProvider.ListenBrainz, "ListenBrainz", scrobble, () => _users.Current.Username));
+        ScrobbleServices.Add(new ScrobbleServiceViewModel(ScrobbleProvider.LibreFm, "Libre.fm", scrobble, () => _users.Current.Username));
+        _scrobble.Changed += (_, _) => OnUi(RefreshScrobbleServices);
+        _users.Changed += (_, _) => OnUi(RefreshScrobbleServices);
 
         _scanSubdirectories = settings.Current.ScanSubdirectories;
         _mergeCompilationAlbums = settings.Current.MergeCompilationAlbums;
@@ -57,6 +68,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
     }
 
     public ObservableCollection<string> MusicFolders { get; } = new();
+    public ObservableCollection<ScrobbleServiceViewModel> ScrobbleServices { get; } = new();
+
+    private void RefreshScrobbleServices()
+    {
+        foreach (var s in ScrobbleServices) s.Refresh();
+    }
     public IReadOnlyList<ThemeDefinition> Themes => _themes.BuiltIns;
     public IReadOnlyList<string> SupportedFormats => AudioFormats.DisplayNames;
     public ObservableCollection<EqBandViewModel> EqBands { get; } = new();

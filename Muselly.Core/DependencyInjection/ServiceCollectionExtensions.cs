@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPlaylistService, PlaylistService>();
         services.AddSingleton<IFavoritesService, FavoritesService>();
         services.AddSingleton<IListeningHistoryService, ListeningHistoryService>();
+        services.AddSingleton<IScrobbleService, ScrobblerService>();
         // Optional dependency on IServerUserStore (only registered by heads that run the server) — resolved
         // via the service provider so the core build works without it.
         services.AddSingleton<IUserService>(sp =>

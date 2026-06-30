@@ -148,6 +148,59 @@
                 </StackPanel>
             </Border>
 
+            <!-- Scrobbling -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Scrobbling" Classes="h3"/>
+                        <TextBlock Classes="caption"
+                                   Text="Submit the music you play to your accounts. Each service is connected per user."/>
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding ScrobbleServices}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ScrobbleServiceViewModel">
+                                <Border Classes="surface" Padding="14,12" Margin="0,0,0,8">
+                                    <StackPanel Spacing="8">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Spacing="1">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource CatppuccinText}"/>
+                                                <TextBlock Classes="caption" IsVisible="{Binding IsConnected}"
+                                                           Text="{Binding AccountName, StringFormat='Connected as {0}'}"/>
+                                                <TextBlock Classes="caption" IsVisible="{Binding !IsAvailable}"
+                                                           Text="Needs a Last.fm API key configured in this build."/>
+                                            </StackPanel>
+                                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                                          IsVisible="{Binding IsConnected}" IsChecked="{Binding Enabled}"
+                                                          OnContent="On" OffContent="Off"/>
+                                        </Grid>
+
+                                        <!-- Connect form (when not connected and the service is available) -->
+                                        <StackPanel Spacing="6" IsVisible="{Binding !IsConnected}">
+                                            <StackPanel IsVisible="{Binding IsAvailable}" Spacing="6">
+                                                <TextBox Text="{Binding Field1}" PlaceholderText="{Binding Field1Label}"/>
+                                                <TextBox Text="{Binding Field2}" PasswordChar="•" PlaceholderText="Password"
+                                                         IsVisible="{Binding UsesPassword}"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <Button Classes="accent compact" Content="Connect"
+                                                            Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsBusy}"/>
+                                                    <TextBlock Text="{Binding Status}" Classes="caption" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsConnected}">
+                                            <Button Classes="pill compact" Content="Disconnect" Command="{Binding DisconnectCommand}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <!-- Appearance -->
             <Border Classes="card">
                 <StackPanel Spacing="14">
