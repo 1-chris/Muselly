@@ -57,6 +57,39 @@ public static class ArtworkCache
         return bitmap;
     }
 
+    /// <summary>
+    /// Loads cover art at full (native) resolution, bypassing the thumbnail decode cap — for the cover
+    /// lightbox, where we want maximum quality. Not cached (it's transient and can be large). Works for local
+    /// files and remote (<c>muselly://</c>) art alike.
+    /// </summary>
+    public static async Task<Bitmap?> LoadFullAsync(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        try
+        {
+            if (RemoteSource.IsRemote(path))
+            {
+                var manager = RemoteManager;
+                if (manager is null) return null;
+                var bytes = await manager.GetResourceAsync(path).ConfigureAwait(false);
+                if (bytes is not { Length: > 0 }) return null;
+                using var ms = new MemoryStream(bytes);
+                return new Bitmap(ms);
+            }
+
+            if (File.Exists(path))
+            {
+                using var stream = File.OpenRead(path);
+                return new Bitmap(stream); // full resolution (no DecodeToWidth)
+            }
+        }
+        catch
+        {
+            // Unreadable/corrupt image — caller falls back to the thumbnail.
+        }
+        return null;
+    }
+
     /// <summary>Fetches and decodes remote artwork (no-op for local paths, which use <see cref="Get"/>).</summary>
     public static async Task<Bitmap?> GetRemoteAsync(string path)
     {

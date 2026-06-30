@@ -13,7 +13,8 @@
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,18">
             <controls:AlbumArt Grid.Column="0" Width="200" Height="200" CornerRadius="16"
-                               Source="{Binding Album.ArtworkPath}"/>
+                               Source="{Binding Album.ArtworkPath}"
+                               Cursor="Hand" PointerPressed="OnArtClick" ToolTip.Tip="View cover"/>
             <StackPanel Grid.Column="1" Margin="22,0,0,0" VerticalAlignment="Bottom" Spacing="10">
                 <TextBlock Text="ALBUM" Classes="caption" Foreground="{StaticResource CatppuccinMauve}"
                            FontWeight="Bold"/>

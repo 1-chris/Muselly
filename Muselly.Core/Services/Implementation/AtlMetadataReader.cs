@@ -48,7 +48,8 @@ public sealed class AtlMetadataReader : IMetadataReader
             var artist = FirstNonEmpty(atl.Artist, atl.AlbumArtist) ?? "Unknown Artist";
             var albumKey = Identifiers.AlbumKey(albumArtist, album);
 
-            var artworkPath = _artworkByAlbum.GetOrAdd(albumKey, _ => ExtractArtwork(atl, albumKey));
+            var directory = Path.GetDirectoryName(resolvedPath) ?? string.Empty;
+            var artworkPath = _artworkByAlbum.GetOrAdd(albumKey, _ => ExtractArtwork(atl, albumKey, directory));
 
             return new Track
             {
@@ -122,38 +123,83 @@ public sealed class AtlMetadataReader : IMetadataReader
     private static readonly NormalizationForm[] NormalizationForms =
         { NormalizationForm.FormC, NormalizationForm.FormD, NormalizationForm.FormKC, NormalizationForm.FormKD };
 
-    private string? ExtractArtwork(ATL.Track atl, string albumKey)
+    private string? ExtractArtwork(ATL.Track atl, string albumKey, string directory)
     {
         try
         {
-            if (atl.EmbeddedPictures is null || atl.EmbeddedPictures.Count == 0)
-                return null;
+            // 1) Prefer a cover image sitting next to the audio (cover.jpg, folder.png, …): it's typically
+            //    the authoritative, full-resolution album art, more reliable than embedded thumbnails.
+            var folderCover = FindFolderCover(directory);
+            if (folderCover is not null) return folderCover;
 
-            // Prefer an explicit front-cover picture, else take the first.
-            var picture = atl.EmbeddedPictures[0];
-            foreach (var p in atl.EmbeddedPictures)
+            // 2) Otherwise use embedded cover art (preferring an explicit front cover), cached once.
+            if (atl.EmbeddedPictures is { Count: > 0 })
             {
-                if (p.PicType == ATL.PictureInfo.PIC_TYPE.Front)
+                var picture = atl.EmbeddedPictures[0];
+                foreach (var p in atl.EmbeddedPictures)
                 {
-                    picture = p;
-                    break;
+                    if (p.PicType == ATL.PictureInfo.PIC_TYPE.Front)
+                    {
+                        picture = p;
+                        break;
+                    }
+                }
+
+                var data = picture.PictureData;
+                if (data is { Length: > 0 })
+                {
+                    var ext = MimeToExt(picture.MimeType);
+                    var dest = Path.Combine(StoragePaths.ArtworkCacheDirectory(), albumKey + "." + ext);
+                    if (!File.Exists(dest))
+                        File.WriteAllBytes(dest, data);
+                    return dest;
                 }
             }
 
-            var data = picture.PictureData;
-            if (data is null || data.Length == 0) return null;
-
-            var ext = MimeToExt(picture.MimeType);
-            var dest = Path.Combine(StoragePaths.ArtworkCacheDirectory(), albumKey + "." + ext);
-            if (!File.Exists(dest))
-                File.WriteAllBytes(dest, data);
-            return dest;
+            return null;
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to extract artwork for album {Album}", albumKey);
-            return null;
+            return FindFolderCover(directory);
         }
+    }
+
+    // Common cover-image base names (case-insensitive), in preference order.
+    private static readonly string[] CoverBaseNames =
+        { "cover", "folder", "front", "album", "albumart", "albumartsmall", "art", "thumb" };
+
+    private static readonly string[] CoverExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp" };
+
+    /// <summary>Looks for a cover image in the track's own folder (cover/folder/front/… .jpg/png/…), returning
+    /// the first match in preference order, or null. Matching is case-insensitive so it works on any OS.</summary>
+    private static string? FindFolderCover(string directory)
+    {
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory)) return null;
+
+        try
+        {
+            // Index the directory's image files by lower-cased name so we can match case-insensitively
+            // without probing dozens of exact paths (also correct on case-sensitive filesystems).
+            var images = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var file in Directory.EnumerateFiles(directory))
+            {
+                var ext = Path.GetExtension(file).ToLowerInvariant();
+                if (Array.IndexOf(CoverExtensions, ext) < 0) continue;
+                var name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+                images.TryAdd(name, file);
+            }
+            if (images.Count == 0) return null;
+
+            foreach (var baseName in CoverBaseNames)
+                if (images.TryGetValue(baseName, out var path))
+                    return path;
+        }
+        catch
+        {
+            // Unreadable directory (permissions / dropped share) — just skip the folder cover.
+        }
+        return null;
     }
 
     private static string MimeToExt(string? mime) => mime switch
