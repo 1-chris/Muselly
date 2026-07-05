@@ -119,7 +119,7 @@ public sealed class MusellyApiService
             return new GetLibraryResponse { Etag = etag, Unchanged = true };
 
         var response = new GetLibraryResponse { Etag = etag };
-        foreach (var t in _engine.Library.Tracks)
+        foreach (var t in _engine.Library.AllTracks())
         {
             if (RemoteSource.IsRemote(t.Source)) continue; // only share this host's own tracks
             response.Tracks.Add(ToDto(t));
@@ -193,9 +193,13 @@ public sealed class MusellyApiService
         bool Local(Track t) => !RemoteSource.IsRemote(t.Source);
         return scope.Kind switch
         {
-            ShareKind.Album => _engine.Library.Tracks.Where(t => Local(t) && t.AlbumKey == scope.Key).ToList(),
-            ShareKind.Artist => _engine.Library.Tracks.Where(t => Local(t) && t.ArtistKey == scope.Key).ToList(),
-            ShareKind.Song => _engine.Library.Tracks.Where(t => Local(t) && t.Id == scope.Key).ToList(),
+            ShareKind.Album => (_engine.Library.FindAlbum(scope.Key)?.Tracks ?? Array.Empty<Track>())
+                .Where(Local).ToList(),
+            ShareKind.Artist => (_engine.Library.FindArtist(scope.Key)?.Tracks ?? Array.Empty<Track>())
+                .Where(Local).ToList(),
+            ShareKind.Song => _engine.Library.FindTrack(scope.Key) is { } song && Local(song)
+                ? new List<Track> { song }
+                : Array.Empty<Track>(),
             ShareKind.Playlist => (_engine.Playlists?.ResolveTracks(scope.Key) ?? Array.Empty<Track>())
                 .Where(Local).ToList(),
             _ => Array.Empty<Track>()

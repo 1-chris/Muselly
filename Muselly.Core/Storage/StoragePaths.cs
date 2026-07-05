@@ -39,6 +39,13 @@ public static class StoragePaths
 
     public static string LibraryCacheFile() => Path.Combine(ConfigDirectory(), "library.json");
 
+    /// <summary>SQLite database holding the local library (desktop/headless/server heads).</summary>
+    public static string LibraryDatabaseFile() => Path.Combine(ConfigDirectory(), "library.db");
+
+    /// <summary>Marker written while a folder-wide scan is in progress and removed on success, so an
+    /// interrupted (e.g. very long) scan can be resumed automatically on the next launch.</summary>
+    public static string LibraryScanMarkerFile() => Path.Combine(ConfigDirectory(), "library.scanning");
+
     public static string PlaylistsFile() => Path.Combine(ConfigDirectory(), "playlists.json");
 
     /// <summary>Persisted play queue + current track/position, so a session resumes where it left off.</summary>

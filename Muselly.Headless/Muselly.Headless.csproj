@@ -20,5 +20,6 @@
     <ProjectReference Include="..\Muselly.Core\Muselly.Core.csproj" />
     <ProjectReference Include="..\Muselly.Server\Muselly.Server.csproj" />
     <ProjectReference Include="..\Muselly.WebHost\Muselly.WebHost.csproj" />
+    <ProjectReference Include="..\Muselly.Persistence\Muselly.Persistence.csproj" />
   </ItemGroup>
 </Project>

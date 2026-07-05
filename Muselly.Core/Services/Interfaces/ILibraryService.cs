@@ -3,14 +3,23 @@ using Muselly.Core.Models;
 namespace Muselly.Core.Services.Interfaces;
 
 /// <summary>
-/// The music library: owns the scanned tracks and the album / artist / folder organisations derived from
-/// them. It loads a cached snapshot at startup (fast) and can rescan the configured folders on demand,
-/// reporting progress. Derived collections are rebuilt in memory from the flat track list, so persistence
-/// is just the track list.
+/// The music library: owns the scanned tracks (persisted in a store) and the album / artist / folder
+/// summaries derived from them. To keep a large library out of memory the tracks themselves are not held
+/// resident — the album/artist/folder summaries carry counts and load their tracks on demand from the store,
+/// and the flat "all songs" view is served by paged queries (<see cref="SearchTracks"/>).
 /// </summary>
 public interface ILibraryService
 {
-    IReadOnlyList<Track> Tracks { get; }
+    /// <summary>Total number of songs in the library (local + any connected remotes), without loading them.</summary>
+    int TrackCount { get; }
+
+    /// <summary>Materialises every track (local + remote) into a list. Transient and potentially large — for
+    /// whole-library operations (sharing, serving a remote client). Avoid on hot paths.</summary>
+    IReadOnlyList<Track> AllTracks();
+
+    /// <summary>A page of songs ordered by title, optionally filtered by a search term (title/artist/album).
+    /// Backs the Songs view and search without holding the whole library resident.</summary>
+    IReadOnlyList<Track> SearchTracks(string? query, int offset, int limit);
 
     IReadOnlyList<Album> Albums { get; }
 
@@ -26,6 +35,10 @@ public interface ILibraryService
     /// <summary>True while the cached library is being loaded from disk at startup (before the first
     /// <see cref="LibraryChanged"/>). Lets the UI show a "loading" state rather than "empty".</summary>
     bool IsLoading { get; }
+
+    /// <summary>True when a folder-wide scan was started but never finished (the app closed mid-scan). Startup
+    /// uses this to resume a long scan instead of leaving the library half-populated.</summary>
+    bool ScanIncomplete { get; }
 
     /// <summary>Raised (possibly off the UI thread) whenever the library content changes.</summary>
     event EventHandler? LibraryChanged;
@@ -45,9 +58,9 @@ public interface ILibraryService
     /// <summary>Loads the persisted snapshot from disk and rebuilds the organisations. Fast; no file I/O on audio.</summary>
     Task LoadAsync();
 
-    /// <summary>Re-applies the compilation-merge and de-duplication passes and rebuilds the organisations from
-    /// the current tracks, without re-reading files. Used when a related setting changes. Raises
-    /// <see cref="LibraryChanged"/>.</summary>
+    /// <summary>Rebuilds the album/artist/folder summaries from the stored tracks (no file I/O). Compilation
+    /// merge and de-duplication are baked into the stored data at scan time, so toggling those settings takes
+    /// full effect on the next scan; this refresh re-projects what's already stored. Raises <see cref="LibraryChanged"/>.</summary>
     void RefreshOrganization();
 
     /// <summary>Full rescan: re-reads every file in every configured folder, so new files are added, edits

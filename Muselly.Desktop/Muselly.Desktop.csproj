@@ -36,6 +36,7 @@
         <ProjectReference Include="..\Muselly.Audio\Muselly.Audio.csproj" />
         <ProjectReference Include="..\Muselly.Server\Muselly.Server.csproj" />
         <ProjectReference Include="..\Muselly.WebHost\Muselly.WebHost.csproj" />
+        <ProjectReference Include="..\Muselly.Persistence\Muselly.Persistence.csproj" />
     </ItemGroup>
 
     <!-- Bundle the matching pre-built ffmpeg binary (see scripts/build-ffmpeg.sh) next to the app so audio

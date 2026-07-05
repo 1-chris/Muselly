@@ -27,12 +27,13 @@
             <!-- Loading hint (shown while the cached library loads or a scan is in progress) -->
             <StackPanel IsVisible="{Binding IsLoading}" VerticalAlignment="Center" HorizontalAlignment="Center"
                         Spacing="16" MaxWidth="420">
-                <ProgressBar IsIndeterminate="True" Width="220" Height="6"
+                <ProgressBar IsIndeterminate="{Binding ScanIndeterminate}" Value="{Binding ScanProgress}"
+                             Minimum="0" Maximum="100" Width="220" Height="6"
                              Foreground="{StaticResource CatppuccinMauve}"
                              Background="{StaticResource CatppuccinSurface1}"/>
-                <TextBlock Text="Loading your library…" Classes="h2" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding ScanStatus}" Classes="h2" HorizontalAlignment="Center"/>
                 <TextBlock HorizontalAlignment="Center" TextAlignment="Center" Classes="subtle"
-                           Text="This can take a moment for large collections."/>
+                           Text="A first scan of a large or network library can take a while — it's saved as it goes, so you can close the app and it'll pick up where it left off."/>
             </StackPanel>
 
             <!-- Empty library hint -->

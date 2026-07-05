@@ -87,6 +87,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private bool _isScanning;
     [ObservableProperty] private double _scanFraction;
     [ObservableProperty] private string _scanStatus = "Idle";
+    [ObservableProperty] private bool _scanIndeterminate;
     [ObservableProperty] private int _trackCount;
     [ObservableProperty] private int _albumCount;
     [ObservableProperty] private int _artistCount;
@@ -214,12 +215,19 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         IsScanning = p.Phase != ScanPhase.Completed && p.Phase != ScanPhase.Idle;
         ScanFraction = p.Fraction;
+        // The streaming scan has no known total until enumeration finishes, so animate the bar instead of
+        // pinning it at 0%.
+        ScanIndeterminate = IsScanning && p.Total <= 0;
         ScanStatus = p.Phase switch
         {
             ScanPhase.Discovering => "Discovering files…",
-            ScanPhase.Reading => $"Reading metadata… {p.Processed}/{p.Total}",
+            // The streaming scan doesn't know the grand total until enumeration finishes, so show a running
+            // count rather than "175/0".
+            ScanPhase.Reading => p.Total > 0
+                ? $"Reading metadata… {p.Processed:N0} / {p.Total:N0}"
+                : $"Reading metadata… {p.Processed:N0} songs",
             ScanPhase.Organizing => "Organising library…",
-            ScanPhase.Completed => $"Done — {p.Total} tracks",
+            ScanPhase.Completed => $"Done — {p.Total:N0} tracks",
             _ => "Idle"
         };
     }
@@ -239,7 +247,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     private void RefreshStats()
     {
-        TrackCount = _library.Tracks.Count;
+        TrackCount = _library.TrackCount;
         AlbumCount = _library.Albums.Count;
         ArtistCount = _library.Artists.Count;
     }

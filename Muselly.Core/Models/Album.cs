@@ -18,31 +18,20 @@ public sealed class Album
 
     public string? Label { get; init; }
 
-    /// <summary>Cover artwork (taken from the first track that carries embedded art).</summary>
-    public string? ArtworkPath { get; init; }
+    /// <summary>Cover artwork (settable so an artwork update can patch it without a full rebuild).</summary>
+    public string? ArtworkPath { get; set; }
 
-    public IReadOnlyList<Track> Tracks { get; init; } = Array.Empty<Track>();
+    /// <summary>Pre-computed at build time so display never needs to load the tracks.</summary>
+    public int TrackCount { get; init; }
 
-    public int TrackCount => Tracks.Count;
+    public int DiscCount { get; init; } = 1;
 
-    public int DiscCount
-    {
-        get
-        {
-            var max = 0u;
-            foreach (var t in Tracks)
-                if (t.DiscNumber > max) max = t.DiscNumber;
-            return (int)Math.Max(1, max);
-        }
-    }
+    public TimeSpan Duration { get; init; }
 
-    public TimeSpan Duration
-    {
-        get
-        {
-            var total = TimeSpan.Zero;
-            foreach (var t in Tracks) total += t.Duration;
-            return total;
-        }
-    }
+    /// <summary>Loads this album's tracks on demand (set by the library service). Not cached here, so the
+    /// tracks are released once the caller is done with them.</summary>
+    public Func<Album, IReadOnlyList<Track>>? TracksProvider { get; set; }
+
+    /// <summary>The album's tracks, ordered by disc then track number. Loaded lazily from the store.</summary>
+    public IReadOnlyList<Track> Tracks => TracksProvider?.Invoke(this) ?? Array.Empty<Track>();
 }

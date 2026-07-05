@@ -426,7 +426,7 @@ public sealed partial class ConnectViewModel : ViewModelBase
                 foreach (var a in _library.Artists) ShareTargets.Add(new ShareTargetRow(a.Key, a.Name));
                 break;
             case ShareKind.Song:
-                foreach (var t in _library.Tracks) ShareTargets.Add(new ShareTargetRow(t.Id, $"{t.Title} — {t.DisplayArtist}"));
+                foreach (var t in _library.AllTracks()) ShareTargets.Add(new ShareTargetRow(t.Id, $"{t.Title} — {t.DisplayArtist}"));
                 break;
             case ShareKind.Playlist:
                 foreach (var p in _playlists.Playlists) ShareTargets.Add(new ShareTargetRow(p.Id, p.Name));

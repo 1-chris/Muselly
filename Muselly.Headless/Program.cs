@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Muselly.Core.DependencyInjection;
 using Muselly.Core.Services.Interfaces;
+using Muselly.Persistence;
 using Muselly.Server.DependencyInjection;
 using Muselly.Server.Transcoding;
 using Muselly.WebHost;
@@ -26,6 +27,7 @@ internal static class Program
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddSimpleConsole(o => o.SingleLine = true).SetMinimumLevel(LogLevel.Information));
         services.AddMusellyCore();
+        services.AddSqliteLibraryStore();
         services.AddMusellyServer();
         services.AddMusellyWebHost();
 
@@ -44,12 +46,12 @@ internal static class Program
         var library = provider.GetRequiredService<ILibraryService>();
         logger.LogInformation("Loading library…");
         await library.LoadAsync();
-        if (library.Tracks.Count == 0 && settings.Current.MusicFolders.Count > 0)
+        if (settings.Current.MusicFolders.Count > 0 && (library.TrackCount == 0 || library.ScanIncomplete))
         {
             logger.LogInformation("Scanning {Count} folder(s)…", settings.Current.MusicFolders.Count);
-            await library.ScanAsync();
+            await library.ScanNewAsync();
         }
-        logger.LogInformation("Library ready: {Tracks} tracks.", library.Tracks.Count);
+        logger.LogInformation("Library ready: {Tracks} tracks.", library.TrackCount);
 
         if (!options.NoServer)
         {

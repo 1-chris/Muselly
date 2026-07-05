@@ -18,6 +18,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IAudioEqualizer, Equalizer>();
         services.AddSingleton<IMetadataReader, AtlMetadataReader>();
+        // Default library persistence (JSON). Desktop/headless/server heads override with a SQLite store.
+        services.AddSingleton<ILibraryStore, JsonLibraryStore>();
         services.AddSingleton<ILibraryService, LibraryService>();
         services.AddSingleton<IQueueService, QueueService>();
         services.AddSingleton<IPlaylistService, PlaylistService>();

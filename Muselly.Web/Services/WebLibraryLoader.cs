@@ -28,7 +28,7 @@ public sealed class WebLibraryLoader
     {
         var dto = await _client.GetLibraryAsync(_etag, ct).ConfigureAwait(false);
         if (dto is null) return 0;
-        if (dto.Unchanged) return _library.Tracks.Count;
+        if (dto.Unchanged) return _library.TrackCount;
 
         _etag = dto.Etag;
         var tracks = new List<Track>(dto.Tracks.Count);

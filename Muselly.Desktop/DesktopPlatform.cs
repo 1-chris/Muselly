@@ -9,6 +9,7 @@ using Muselly.App.Views.Windows;
 using Muselly.Audio;
 using Muselly.Audio.Decoding;
 using Muselly.Core.Services.Interfaces;
+using Muselly.Persistence;
 using Muselly.Server.DependencyInjection;
 using Muselly.Server.Transcoding;
 using Muselly.WebHost.DependencyInjection;
@@ -30,6 +31,9 @@ public sealed class DesktopPlatform : IPlatformServices
 
         // Prefer an ffmpeg binary shipped next to the app; otherwise fall back to one on the PATH.
         UseBundledFfmpegIfPresent();
+
+        // SQLite-backed library storage (faster, lower-memory startup) replaces the JSON default.
+        services.AddSqliteLibraryStore();
 
         // Integrated server + remote-client services. Registered after the core defaults so the remote-aware
         // audio source resolver replaces the local-only one (last registration wins).

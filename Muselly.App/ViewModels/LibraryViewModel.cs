@@ -25,6 +25,10 @@ public sealed partial class LibraryViewModel : ViewModelBase
     private readonly INavigationService _nav;
     private readonly IShareLinkService _shareLinks;
 
+    /// <summary>The flat Songs list is served lazily from the store and capped so it never materialises the
+    /// whole library; search narrows within this window.</summary>
+    private const int SongsPageSize = 1000;
+
     public LibraryViewModel(ILibraryService library, PlaybackCoordinator coordinator, IQueueService queue,
         IPlaylistService playlists, INavigationService nav, IShareLinkService shareLinks)
     {
@@ -35,7 +39,7 @@ public sealed partial class LibraryViewModel : ViewModelBase
         _nav = nav;
         _shareLinks = shareLinks;
         _library.LibraryChanged += (_, _) => OnUi(Reload);
-        _library.ScanProgressChanged += (_, _) => OnUi(UpdateStatus);
+        _library.ScanProgressChanged += (_, p) => OnUi(() => UpdateScan(p));
         Reload();
     }
 
@@ -52,6 +56,11 @@ public sealed partial class LibraryViewModel : ViewModelBase
     [ObservableProperty] private FolderNode? _selectedFolder;
     [ObservableProperty] private bool _isEmpty;
     [ObservableProperty] private bool _isLoading = true;
+
+    /// <summary>Headline shown on the loading screen ("Loading…", "Scanning… 1,234 / 50,000", …).</summary>
+    [ObservableProperty] private string _scanStatus = "Loading your library…";
+    [ObservableProperty] private double _scanProgress;
+    [ObservableProperty] private bool _scanIndeterminate = true;
 
     /// <summary>Show the "empty library" hint only once loading has finished (otherwise show "loading").</summary>
     public bool ShowEmpty => IsEmpty && !IsLoading;
@@ -193,7 +202,37 @@ public sealed partial class LibraryViewModel : ViewModelBase
     private void UpdateStatus()
     {
         IsLoading = _library.IsLoading || _library.IsScanning;
-        IsEmpty = _library.Tracks.Count == 0;
+        IsEmpty = _library.TrackCount == 0;
+    }
+
+    /// <summary>Updates the loading screen from a scan-progress event so a long scan shows live progress
+    /// (count read so far) instead of a static "loading" message.</summary>
+    private void UpdateScan(Muselly.Core.Models.ScanProgress p)
+    {
+        switch (p.Phase)
+        {
+            case Muselly.Core.Models.ScanPhase.Discovering:
+                ScanStatus = "Finding your music…";
+                ScanIndeterminate = true;
+                break;
+            case Muselly.Core.Models.ScanPhase.Reading:
+                // Streaming scan: the total isn't known until enumeration finishes, so show a running count.
+                ScanStatus = p.Total > 0
+                    ? $"Scanning… {p.Processed:N0} / {p.Total:N0}"
+                    : $"Scanning… {p.Processed:N0} songs";
+                ScanIndeterminate = p.Total <= 0;
+                ScanProgress = p.Total > 0 ? p.Processed * 100.0 / p.Total : 0;
+                break;
+            case Muselly.Core.Models.ScanPhase.Organizing:
+                ScanStatus = "Organising your library…";
+                ScanIndeterminate = true;
+                break;
+            default:
+                ScanStatus = "Loading your library…";
+                ScanIndeterminate = true;
+                break;
+        }
+        UpdateStatus();
     }
 
     /// <summary>
@@ -216,10 +255,10 @@ public sealed partial class LibraryViewModel : ViewModelBase
         {
             if (delayMs > 0) await Task.Delay(delayMs, ct).ConfigureAwait(false);
 
-            // Snapshot the (immutably swapped) source lists, then filter off the UI thread.
+            // Album/artist summaries are lightweight and resident, so they're filtered in-memory. Songs are
+            // served lazily from the store (capped) so the flat list never materialises the whole library.
             var albumsSrc = _library.Albums;
             var artistsSrc = _library.Artists;
-            var tracksSrc = _library.Tracks;
 
             var result = await Task.Run(() =>
             {
@@ -236,13 +275,8 @@ public sealed partial class LibraryViewModel : ViewModelBase
                     if (query.Length == 0 || Contains(a.Name, query))
                         artists.Add(a);
 
-                var songs = new List<Track>();
-                foreach (var t in tracksSrc)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    if (query.Length == 0 || Contains(t.Title, query) || Contains(t.DisplayArtist, query) || Contains(t.DisplayAlbum, query))
-                        songs.Add(t);
-                }
+                ct.ThrowIfCancellationRequested();
+                var songs = _library.SearchTracks(query.Length == 0 ? null : query, 0, SongsPageSize);
 
                 return (albums, artists, songs);
             }, ct).ConfigureAwait(false);

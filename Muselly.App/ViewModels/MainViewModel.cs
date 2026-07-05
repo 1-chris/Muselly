@@ -188,8 +188,10 @@ public sealed partial class MainViewModel : ViewModelBase
         // library is loaded so track ids resolve.
         await _session.RestoreAsync();
 
-        if (_library.Tracks.Count == 0 && _settings.Current.MusicFolders.Count > 0)
-            await _library.ScanAsync();
+        // Auto-scan when there's nothing yet, or resume a scan that was interrupted (the app was closed during
+        // a long scan). ScanNew is incremental and persists as it goes, so it picks up where it left off.
+        if (_settings.Current.MusicFolders.Count > 0 && (_library.TrackCount == 0 || _library.ScanIncomplete))
+            await _library.ScanNewAsync();
     }
 
     private void ApplySavedTheme()

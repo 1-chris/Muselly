@@ -101,6 +101,7 @@
                             <TextBlock Text="{Binding ScanStatus}" Classes="caption"/>
                             <ProgressBar Value="{Binding ScanFraction}" Maximum="1" Height="6"
                                          IsVisible="{Binding IsScanning}"
+                                         IsIndeterminate="{Binding ScanIndeterminate}"
                                          Foreground="{StaticResource CatppuccinMauve}"
                                          Background="{StaticResource CatppuccinSurface1}"/>
                         </StackPanel>

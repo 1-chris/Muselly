@@ -318,7 +318,7 @@ public sealed class ServerSession
             return SendResponseAsync(env.Id, MessageType.GetLibrary, new GetLibraryResponse { Etag = etag, Unchanged = true });
 
         var response = new GetLibraryResponse { Etag = etag };
-        foreach (var t in _ctx.Library.Tracks)
+        foreach (var t in _ctx.Library.AllTracks())
         {
             // Only share this server's own (local) tracks, never tracks merged in from elsewhere.
             if (RemoteSource.IsRemote(t.Source)) continue;
